@@ -2,6 +2,8 @@ import MCMC
 import Wells
 import Optim
 import ForwardDiff
+import PyCall
+@PyCall.pyimport pyDOE as doe
 
 type Biguq
 	model::Function
@@ -15,14 +17,16 @@ type Biguq
 	performancegoalsatisfied::Function#tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getfailureprobability(biguq::Biguq, horizon::Number, likelihoodparams)
+function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int(1e4))
 	loglikelihood = biguq.makeloglikelihood(likelihoodparams)
 	mcmcmodel = MCMC.model(params -> biguq.logprior(params) + loglikelihood(params), init=biguq.nominalparams)
 	rmw = MCMC.RWM(0.1)
-	smc = MCMC.SerialMC(steps=int(1e5), burnin=int(1e4))
-	#println("likeparams: $likelihoodparams")
+	smc = MCMC.SerialMC(steps=steps, burnin=burnin)
 	mcmcchain = MCMC.run(mcmcmodel, rmw, smc)
-	#MCMC.describe(mcmcchain)
+	return mcmcchain
+end
+
+function getfailureprobability(biguq::Biguq, horizon::Number, mcmcchain::MCMC.MCMCChain)
 	failures = 0
 	for sample in mcmcchain.samples
 		if !biguq.performancegoalsatisfied(sample, horizon)
@@ -30,48 +34,56 @@ function getfailureprobability(biguq::Biguq, horizon::Number, likelihoodparams)
 		end
 	end
 	retval = failures / size(mcmcchain.samples)[1]
-	println("$horizon $retval")
+	#println("$horizon $retval")
 	return retval
 end
 
-function getmaxfailureprobabilities(biguq::Biguq, horizons::Array{Float64, 1})
-	results = Array(Float64, size(horizons)[1])
+function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams)
+	mcmcchain = getmcmcchain(biguq, likelihoodparams)
+	results = similar(horizons)
 	i = 1
 	for horizon in horizons
-		l = biguq.likelihoodparamsmin(horizon)
-		u = biguq.likelihoodparamsmax(horizon)
-		x0 = biguq.likelihoodparamsmin(0)
-		#println("x0: $x0")
-		#println("l: $l")
-		#println("u: $u")
-		#df = DifferentiableFunction(x -> -getfailureprobability(biguq, horizon, x))
-		#results[i] = fminbox(df, x0, l, u)
-		#g! = ForwardDiff.forwarddiff_gradient!(x -> getfailureprobability(biguq, horizon, x), Float64, n=size(biguq.nominalparams)[1])
-		h = 0.01
-#		function getfailureprobability(a, b, x)
-#			return x[1]
-#		end
-		function myf(storage::Vector, x)
-			#println("x: $x")
-			#g!(x, storage)
-			retval = -getfailureprobability(biguq, horizon, x)
-			for j = 1:size(storage)[1]
-				xpdx = copy(x)
-				xpdx[j] += h
-				fval = -getfailureprobability(biguq, horizon, xpdx)
-				storage[j] = (fval - retval) / h
-			end
-			#println("retval: $retval")
-			#println("gradient: $storage")
-			return retval
-		end
-		x, fval, fcount, converged = Optim.fminbox(myf, x0, l, u)
-		println("worstx: $x")
-		results[i] = getfailureprobability(biguq, horizon, x)
+		results[i] = getfailureprobability(biguq, horizon, mcmcchain)
 		i += 1
 	end
-	println(results)
 	return results
+end
+
+function inbox(x, mins, maxs)
+	return all(map(<=, x, maxs)) && all(map(>=, x, mins))
+end
+
+function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::Int64; numhorizons::Int64=100)
+	minlikelihoodparams = biguq.likelihoodparamsmin(hakunamatata)
+	maxlikelihoodparams = biguq.likelihoodparamsmax(hakunamatata)
+	lhs = doe.lhs(size(minlikelihoodparams)[1], samples=numlikelihoods)
+	likelihoodparams = similar(lhs)
+	likelihoodhorizonindices = Array(Int64, numlikelihoods)
+	horizons = linspace(0, hakunamatata, numhorizons)
+	for i = 1:numlikelihoods
+		for j = 1:size(minlikelihoodparams)[1]
+			likelihoodparams[i, j] = minlikelihoodparams[j] + lhs[i, j] * (maxlikelihoodparams[j] - minlikelihoodparams[j])
+			k = 1
+			likelihoodhorizonindices[i] = numhorizons
+			while k <= numlikelihoods
+				if inbox(likelihoodparams[i], biguq.likelihoodparamsmin(horizons[k]), biguq.likelihoodparamsmax(horizons[k]))
+					likelihoodhorizonindices[i] = k
+					k = numlikelihoods + 1
+				end
+				k += 1
+			end
+		end
+	end
+	failureprobs = pmap(lparams -> getfailureprobabilities(biguq, horizons, lparams), likelihoodparams)
+	maxfailureprobs = zeros(numhorizons)
+	for i = 1:numlikelihoods
+		for k = likelihoodhorizonindices[i]:numhorizons
+			if failureprobs[i][k] > maxfailureprobs[k]
+				maxfailureprobs[k] = failureprobs[i][k]
+			end
+		end
+	end
+	return maxfailureprobs
 end
 
 function getbiguq1()
@@ -82,7 +94,7 @@ function getbiguq1()
 	function makeloglikelihood(likelihoodparams)
 		N = likelihoodparams[1]
 		#return params -> -(abs(params[1] * 1 - 1.5)) ^ N
-		return params -> (params[1] < N ? 0. : -Inf)
+		return params -> (params[1] <= N ? 0. : -Inf)
 	end
 	function logprior(params)
 		k = params[1]
@@ -94,7 +106,7 @@ function getbiguq1()
 	end
 	nominalparams = [2 / 3]
 	function likelihoodparamsmin(horizon)
-		[max(.5, (1 - horizon) * 2.)]
+		[max(nominalparams[1], (1 - horizon) * 2.)]
 	end
 	function likelihoodparamsmax(horizon)
 		[(1 + horizon) * 2.]
@@ -107,11 +119,12 @@ function getbiguq1()
 end
 
 function test(biguq)
-	return getmaxfailureprobabilities(biguq, [.1, 1., 10.])
+	return getrobustnesscurve(biguq, 10, 1000)
 end
 
 biguq1 = getbiguq1()
-test(biguq1)
+failureprobs = test(biguq1)
+println("failureprobs: $failureprobs")
 
 #times = linspace(1, 30, 30) * 24 * 3600
 #deltaheads = zeros(30)
