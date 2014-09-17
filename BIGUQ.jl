@@ -7,7 +7,7 @@ import PyCall
 
 type Biguq
 	model::Function
-        makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function
+        makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
         logprior::Function # the function encoding our prior beliefs
         nominalparams # nominal parameters for the model
         # now include functions that tell us about the infogap uncertainty model
@@ -17,7 +17,7 @@ type Biguq
         performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int(1e4)) # called in getfailureprobabilities
+function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int(1e3)) # called in getfailureprobabilities
 	loglikelihood = biguq.makeloglikelihood(likelihoodparams)
         mcmcmodel = MCMC.model(params -> biguq.logprior(params) + loglikelihood(params), init=biguq.nominalparams)
 	rmw = MCMC.RWM(0.1)
@@ -28,17 +28,18 @@ end
 
 function getfailureprobability(biguq::Biguq, horizon::Number, mcmcchain::MCMC.MCMCChain) # called in getfailureprobabilities
 	failures = 0
-	for sample in mcmcchain.samples
+	for i = 1:size(mcmcchain.samples)[1]
+	#for sample in mcmcchain.samples
+		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples)[2])
 		if !biguq.performancegoalsatisfied(sample, horizon)
 			failures += 1
 		end
 	end
 	retval = failures / size(mcmcchain.samples)[1]
-	#println("$horizon $retval")
 	return retval
 end
 
-function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams) # called in getrobustnesscurve
+function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
 	mcmcchain = getmcmcchain(biguq, likelihoodparams)
 	results = similar(horizons)
 	i = 1
@@ -74,16 +75,21 @@ function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::
 			end
 		end
 	end
-	failureprobs = pmap(lparams -> getfailureprobabilities(biguq, horizons, lparams), likelihoodparams)
+	failureprobs = pmap(i -> getfailureprobabilities(biguq, horizons, reshape(likelihoodparams[i, :], size(likelihoodparams)[2])), 1:size(likelihoodparams)[1])
 	maxfailureprobs = zeros(numhorizons)
+	badlikelihoodparams = Array(typeof(likelihoodparams[1]), numhorizons)
+	for i = 1:numhorizons
+		badlikelihoodparams[i, :] = biguq.likelihoodparamsmin(0.)
+	end
 	for i = 1:numlikelihoods
 		for k = likelihoodhorizonindices[i]:numhorizons
 			if failureprobs[i][k] > maxfailureprobs[k]
 				maxfailureprobs[k] = failureprobs[i][k]
+				badlikelihoodparams[k] = likelihoodparams[i]
 			end
 		end
 	end
-	return maxfailureprobs
+	return maxfailureprobs, horizons, badlikelihoodparams
 end
 
 function getbiguq1()
@@ -118,56 +124,41 @@ function getbiguq1()
 	return biguq
 end
 
-function test(biguq)
-	return getrobustnesscurve(biguq, 10, 1000)
+function getbiguq2()
+	function model(params::Vector)
+		return params[1]
+	end
+	const data = 1 + .1 * randn(50)
+	function makeloglikelihood(likelihoodparams::Vector)
+		logvar = likelihoodparams[1]
+		var = exp(logvar)
+		return params -> -.5 * sum((data - params[1]) .^ 2) / var - logvar
+	end
+	nominalparams = [.5]
+	function logprior(params::Vector)
+		return -.5 * (params[1] - nominalparams[1]) ^ 2 / .01
+	end
+	function likelihoodparamsmin(horizon::Number)
+		return [4 - horizon]
+	end
+	function likelihoodparamsmax(horizon::Number)
+		return [4 + horizon]
+	end
+	function performancegoalsatisfied(params::Vector, horizon::Number)
+		return model(params) < .9
+	end
+	biguq = Biguq(model, makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied)
 end
 
-biguq1 = getbiguq1()
-failureprobs = test(biguq1)
-println("failureprobs: $failureprobs")
+function test(biguq::Biguq)
+	numhorizons = 10
+	@time maxfailureprobs, horizons, badlikelihoodparams = getrobustnesscurve(biguq, 10, 100; numhorizons=numhorizons)
+	for i = 1:numhorizons
+		println(horizons[i], ": ", maxfailureprobs[i], " -- ", badlikelihoodparams[i])
+	end
+end
 
-#times = linspace(1, 30, 30) * 24 * 3600
-#deltaheads = zeros(30)
-#Qw = .1 #m^3/sec
-#K1 = 1e-3 #m/sec -- pervious
-#K2 = 1e-5 #m/sec -- semi-pervious
-#L1 = 100 #m
-#L2 = 200 #m
-#Sc1 = 7e-5 #m^-1 -- dense, sandy gravel
-#Sc2 = 1e-5 #m^-1 -- fissured rock
-#ra = .1 #m
-#R = 100 #m
-#omega = 1e3 #no resistance
-#deltah = 0 #m
-#r1 = 50 #m
-#function loglikelihood(params)
-#	Qw = params[1]
-#	K1 = params[2]
-#	K2 = params[3]
-#	L1 = params[4]
-#	L2 = params[5]
-#	Sc1 = params[6]
-#	Sc2 = params[7]
-#	ra = params[8]
-#	R = params[9]
-#	omega = params[10]
-#	deltah = params[11]
-#	r1 = params[12]
-#	#lp = logprior(K1, K2, L1, L2, Sci1, Sci2, ra, R, 
-#	if K1 < 0 || K2 < 0 || L1 < 0 || L2 < 0 || Sc1 < 0 || Sc2 < 0 || ra < 0 || R < 0 || omega < 0 || r1 < 0
-#		return -Inf
-#	end
-#	avcideltaheads = map(t -> Wells.avcideltahead(Qw, K1, K2, L1, L2, Sc1, Sc2, ra, R, omega, deltah, r1, t), times)
-#	v = deltaheads - avcideltaheads
-#	retval = -dot(v, v)
-#	return retval
-#end
-#mymodel = MCMC.model(v -> -dot(v, v), grad=v -> -2 * v, init=ones(3))
-#mychain = run(mymodel, MCMC.HMC(0.1), MCMC.SerialMC(steps=100000, burnin=10000))
-#params0 = [Qw, K1, K2, L1, L2, Sc1, Sc2, ra, R, omega, deltah, r1]
-##mymodel = MCMC.model(v -> -dot(v, v), init=params0)
-#mymodel = MCMC.model(loglikelihood, init=params0)
-#rmw = MCMC.RWM(0.1)
-#smc = MCMC.SerialMC(steps=int(1e5), burnin=int(1e4))
-#mychain = MCMC.run(mymodel, rmw, smc)
-#MCMC.describe(mychain)
+#biguq1 = getbiguq1()
+#failureprobs = test(biguq1)
+biguq2 = getbiguq2()
+test(biguq2)
