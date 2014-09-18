@@ -17,12 +17,17 @@ type Biguq
 	performancegoalsatisfied::Function#tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int(1e3))
+function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int(1e4))
 	loglikelihood = biguq.makeloglikelihood(likelihoodparams)
-	mcmcmodel = MCMC.model(params -> biguq.logprior(params) + loglikelihood(params), init=biguq.nominalparams)
-	rmw = MCMC.RWM(0.1)
+	lhoodgrad = ForwardDiff.forwarddiff_gradient(params -> biguq.logprior(params) + loglikelihood(params), Float64, n=size(biguq.nominalparams, 1))
+	println(lhoodgrad([4.]))
+	mcmcmodel = MCMC.model(params -> biguq.logprior(params) + loglikelihood(params), grad=lhoodgrad, init=biguq.nominalparams)
+	#rmw = MCMC.RWM(0.1)
+	rmw = MCMC.HMC(3, 0.1)
 	smc = MCMC.SerialMC(steps=steps, burnin=burnin)
 	mcmcchain = MCMC.run(mcmcmodel, rmw, smc)
+	MCMC.describe(mcmcchain)
+	println(MCMC.acceptance(mcmcchain))
 	return mcmcchain
 end
 
@@ -128,7 +133,7 @@ function getbiguq2()
 	function model(params::Vector)
 		return params[1]
 	end
-	const data = 1 + .1 * randn(50)
+	const data = 1 + .1 * randn(5)
 	function makeloglikelihood(likelihoodparams::Vector)
 		logvar = likelihoodparams[1]
 		var = exp(logvar)
@@ -152,7 +157,7 @@ end
 
 function test(biguq::Biguq)
 	numhorizons = 10
-	@time maxfailureprobs, horizons, badlikelihoodparams = getrobustnesscurve(biguq, 10, 100; numhorizons=numhorizons)
+	@time maxfailureprobs, horizons, badlikelihoodparams = getrobustnesscurve(biguq, 10, 10; numhorizons=numhorizons)
 	for i = 1:numhorizons
 		println(horizons[i], ": ", maxfailureprobs[i], " -- ", badlikelihoodparams[i])
 	end
