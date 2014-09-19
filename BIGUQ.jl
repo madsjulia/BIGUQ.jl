@@ -3,18 +3,18 @@ import Wells
 import Optim
 import ForwardDiff
 import PyCall
-@PyCall.pyimport pyDOE as doe
+@PyCall.pyimport pyDOE as doe # called in getrobustnesscurve
 
 type Biguq
 	model::Function
-	makeloglikelihood::Function#we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
-	logprior::Function#the function encoding our prior beliefs
-	nominalparams#nominal parameters for the model
-	#now include functions that tell us about the infogap uncertainty model
-	likelihoodparamsmin::Function#gives us the minimums of the likelihood params as a function of the horizon of uncertainty
-	likelihoodparamsmax::Function#gives us the maximums of the likelihood params as a function of the horizon of uncertainty
-	#now include a function that tells us whether the performance goal is satisfied -- this function includes information about the model uncertainty
-	performancegoalsatisfied::Function#tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
+        makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
+        logprior::Function # the function encoding our prior beliefs
+        nominalparams # nominal parameters for the model
+        # now include functions that tell us about the infogap uncertainty model
+        likelihoodparamsmin::Function # gives us the minimums of the likelihood params as a function of the horizon of uncertainty
+        likelihoodparamsmax::Function # gives us the maximums of the likelihood params as a function of the horizon of uncertainty
+        # now include a function that tells us whether the performance goal is satisfied -- this function includes information about the model uncertainty
+        performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
 function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int(1e4))
@@ -22,8 +22,8 @@ function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int
 	lhoodgrad = ForwardDiff.forwarddiff_gradient(params -> biguq.logprior(params) + loglikelihood(params), Float64, n=size(biguq.nominalparams, 1))
 	println(lhoodgrad([4.]))
 	mcmcmodel = MCMC.model(params -> biguq.logprior(params) + loglikelihood(params), grad=lhoodgrad, init=biguq.nominalparams)
-	#rmw = MCMC.RWM(0.1)
-	rmw = MCMC.HMC(3, 0.1)
+	rmw = MCMC.RWM(0.1)
+	#rmw = MCMC.HMC(3, 0.1)
 	smc = MCMC.SerialMC(steps=steps, burnin=burnin)
 	mcmcchain = MCMC.run(mcmcmodel, rmw, smc)
 	MCMC.describe(mcmcchain)
@@ -31,7 +31,7 @@ function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int
 	return mcmcchain
 end
 
-function getfailureprobability(biguq::Biguq, horizon::Number, mcmcchain::MCMC.MCMCChain)
+function getfailureprobability(biguq::Biguq, horizon::Number, mcmcchain::MCMC.MCMCChain) # called in getfailureprobabilities
 	failures = 0
 	for i = 1:size(mcmcchain.samples)[1]
 	#for sample in mcmcchain.samples
@@ -44,7 +44,7 @@ function getfailureprobability(biguq::Biguq, horizon::Number, mcmcchain::MCMC.MC
 	return retval
 end
 
-function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams::Vector)
+function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
 	mcmcchain = getmcmcchain(biguq, likelihoodparams)
 	results = similar(horizons)
 	i = 1
@@ -55,7 +55,7 @@ function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparam
 	return results
 end
 
-function inbox(x, mins, maxs)
+function inbox(x, mins, maxs) # called in getrobustnesscurve
 	return all(map(<=, x, maxs)) && all(map(>=, x, mins))
 end
 
