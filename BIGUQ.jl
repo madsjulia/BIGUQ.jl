@@ -1,3 +1,4 @@
+module BIGUQ
 import MCMC
 import Wells
 import Optim
@@ -16,18 +17,26 @@ type Biguq
 	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int(1e4))
-	loglikelihood = biguq.makeloglikelihood(likelihoodparams)
-	mcmcmodel = MCMC.model(params -> biguq.logprior(params) + loglikelihood(params), init=biguq.nominalparams)
-	rmw = MCMC.RWM(0.1)
+function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int(1e3))
+	conditionalloglikelihood = biguq.makeloglikelihood(likelihoodparams)
+	function loglikelihood(params)
+		l1 = biguq.logprior(params)
+		if l1 == -Inf
+			return -Inf
+		else
+			return l1 + conditionalloglikelihood(params)
+		end
+	end
+	mcmcmodel = MCMC.model(loglikelihood, init=biguq.nominalparams)
+	rmw = MCMC.RWM(1e-2)
 	#lhoodgrad = ForwardDiff.forwarddiff_gradient(params -> biguq.logprior(params) + loglikelihood(params), Float64, n=size(biguq.nominalparams, 1))
 	#println(lhoodgrad([4.]))
 	#mcmcmodel = MCMC.model(params -> biguq.logprior(params) + loglikelihood(params), grad=lhoodgrad, init=biguq.nominalparams)
 	#rmw = MCMC.HMC(3, 0.1)
 	smc = MCMC.SerialMC(steps=steps, burnin=burnin)
 	mcmcchain = MCMC.run(mcmcmodel, rmw, smc)
-	MCMC.describe(mcmcchain)
-	println(MCMC.acceptance(mcmcchain))
+	#MCMC.describe(mcmcchain)
+	#println("acceptance: ", MCMC.acceptance(mcmcchain))
 	return mcmcchain
 end
 
@@ -82,9 +91,9 @@ function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::
 	end
 	failureprobs = pmap(i -> getfailureprobabilities(biguq, horizons, reshape(likelihoodparams[i, :], size(likelihoodparams)[2])), 1:size(likelihoodparams)[1])
 	maxfailureprobs = zeros(numhorizons)
-	badlikelihoodparams = Array(typeof(likelihoodparams[1]), numhorizons)
+	badlikelihoodparams = Array(Any, numhorizons)
 	for i = 1:numhorizons
-		badlikelihoodparams[i, :] = biguq.likelihoodparamsmin(0.)
+		badlikelihoodparams[i] = biguq.likelihoodparamsmin(0.)
 	end
 	for i = 1:numlikelihoods
 		for k = likelihoodhorizonindices[i]:numhorizons
@@ -165,5 +174,6 @@ end
 
 #biguq1 = getbiguq1()
 #failureprobs = test(biguq1)
-biguq2 = getbiguq2()
-test(biguq2)
+#biguq2 = getbiguq2()
+#test(biguq2)
+end
