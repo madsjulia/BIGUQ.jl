@@ -3,8 +3,7 @@ import MCMC
 import Wells
 import Optim
 import ForwardDiff
-import PyCall
-@PyCall.pyimport pyDOE as doe # called in getrobustnesscurve
+import BlackBoxOptim
 
 type Biguq
 	makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
@@ -17,7 +16,7 @@ type Biguq
 	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int(1e3))
+function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int(1e3), usederivatives=false)
 	conditionalloglikelihood = biguq.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = biguq.logprior(params)
@@ -27,19 +26,28 @@ function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int
 			return l1 + conditionalloglikelihood(params)
 		end
 	end
-	mcmcmodel = MCMC.model(loglikelihood, init=biguq.nominalparams)
-	rmw = MCMC.RWM(1e-2)
-	#lhoodgrad = ForwardDiff.forwarddiff_gradient(params -> biguq.logprior(params) + loglikelihood(params), Float64, n=size(biguq.nominalparams, 1))
-	#println(lhoodgrad([4.]))
-	#mcmcmodel = MCMC.model(params -> biguq.logprior(params) + loglikelihood(params), grad=lhoodgrad, init=biguq.nominalparams)
-	#rmw = MCMC.HMC(3, 0.1)
+	if usederivatives
+		#loglikelihoodgrad = ForwardDiff.forwarddiff_gradient(loglikelihood, Float64, n=size(biguq.nominalparams, 1))
+		loglikelihoodgrad = ForwardDiff.forwarddiff_gradient(loglikelihood, Float64, fadtype=:dual)
+		mcmcmodel = MCMC.model(loglikelihood, grad=loglikelihoodgrad, init=biguq.nominalparams)
+		rmw = MCMC.HMC(3, 1e-2)
+	else
+		mcmcmodel = MCMC.model(loglikelihood, init=biguq.nominalparams)
+		#rmw = MCMC.RWM(1e-2)
+		rmw = MCMC.RAM(1e-0, 0.3)
+	end
 	smc = MCMC.SerialMC(steps=steps, burnin=burnin)
 	mcmcchain = MCMC.run(mcmcmodel, rmw, smc)
+	ess = MCMC.ess(mcmcchain)
+	if min(ess...) < 10
+		warn(string("Low effective sample size, ", ess, ", with likelihood params ", likelihoodparams))
+	end
 	#MCMC.describe(mcmcchain)
-	#println("acceptance: ", MCMC.acceptance(mcmcchain))
+	println("acceptance: ", MCMC.acceptance(mcmcchain))
 	return mcmcchain
 end
 
+#=
 function getfailureprobability(biguq::Biguq, horizon::Number, mcmcchain::MCMC.MCMCChain) # called in getfailureprobabilities
 	failures = 0
 	for i = 1:size(mcmcchain.samples)[1]
@@ -53,7 +61,7 @@ function getfailureprobability(biguq::Biguq, horizon::Number, mcmcchain::MCMC.MC
 	return retval
 end
 
-function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
+function getfailureprobabilitiesold(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
 	mcmcchain = getmcmcchain(biguq, likelihoodparams)
 	results = similar(horizons)
 	i = 1
@@ -63,6 +71,35 @@ function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparam
 	end
 	return results
 end
+=#
+
+function get_min_index_of_horizon_with_failure(biguq::Biguq, sample::Vector, horizons::Vector)
+	if !biguq.performancegoalsatisfied(sample, horizons[1])
+		return 1
+	elseif biguq.performancegoalsatisfied(sample, horizons[end])
+		return length(horizons) + 1
+	elseif biguq.performancegoalsatisfied(sample, horizons[int(.5 * length(horizons))])
+		return int(.5 * length(horizons)) + get_min_index_of_horizon_with_failure(biguq, sample, horizons[int(.5 * length(horizons)) + 1:end])
+	else
+		return get_min_index_of_horizon_with_failure(biguq, sample, horizons[1:int(.5 * length(horizons)) - 1])
+	end
+end
+
+function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
+	mcmcchain = getmcmcchain(biguq, likelihoodparams)
+	failures = zeros(Int64, length(horizons))
+	for i = 1:size(mcmcchain.samples)[1]
+	#for sample in mcmcchain.samples
+		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples)[2])
+		minindex = get_min_index_of_horizon_with_failure(biguq, sample, horizons)
+		for j = minindex:length(failures)
+			failures[j] += 1
+		end
+		i += 1
+	end
+	return failures / size(mcmcchain.samples, 1)
+end
+
 
 function inbox(x, mins, maxs) # called in getrobustnesscurve
 	return all(map(<=, x, maxs)) && all(map(>=, x, mins))
@@ -71,13 +108,14 @@ end
 function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::Int64; numhorizons::Int64=100)
 	minlikelihoodparams = biguq.likelihoodparamsmin(hakunamatata)
 	maxlikelihoodparams = biguq.likelihoodparamsmax(hakunamatata)
-	lhs = doe.lhs(size(minlikelihoodparams)[1], samples=numlikelihoods)
-	likelihoodparams = similar(lhs)
+	#lhs = doe.lhs(size(minlikelihoodparams)[1], samples=numlikelihoods)
+	#likelihoodparams = similar(lhs)
+	likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
 	likelihoodhorizonindices = Array(Int64, numlikelihoods)
 	horizons = linspace(0, hakunamatata, numhorizons)
 	for i = 1:numlikelihoods
 		for j = 1:size(minlikelihoodparams)[1]
-			likelihoodparams[i, j] = minlikelihoodparams[j] + lhs[i, j] * (maxlikelihoodparams[j] - minlikelihoodparams[j])
+			#likelihoodparams[i, j] = minlikelihoodparams[j] + lhs[i, j] * (maxlikelihoodparams[j] - minlikelihoodparams[j])
 			k = 1
 			likelihoodhorizonindices[i] = numhorizons
 			while k <= numlikelihoods
