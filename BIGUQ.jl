@@ -1,9 +1,8 @@
 module BIGUQ
 import MCMC
-import Wells
-import Optim
 import ForwardDiff
 import BlackBoxOptim
+using Gadfly
 
 type Biguq
 	makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
@@ -47,33 +46,7 @@ function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int
 	return mcmcchain
 end
 
-#=
-function getfailureprobability(biguq::Biguq, horizon::Number, mcmcchain::MCMC.MCMCChain) # called in getfailureprobabilities
-	failures = 0
-	for i = 1:size(mcmcchain.samples)[1]
-	#for sample in mcmcchain.samples
-		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples)[2])
-		if !biguq.performancegoalsatisfied(sample, horizon)
-			failures += 1
-		end
-	end
-	retval = failures / size(mcmcchain.samples)[1]
-	return retval
-end
-
-function getfailureprobabilitiesold(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
-	mcmcchain = getmcmcchain(biguq, likelihoodparams)
-	results = similar(horizons)
-	i = 1
-	for horizon in horizons
-		results[i] = getfailureprobability(biguq, horizon, mcmcchain)
-		i += 1
-	end
-	return results
-end
-=#
-
-function get_min_index_of_horizon_with_failure(biguq::Biguq, sample::Vector, horizons::Vector)
+function get_min_index_of_horizon_with_failure(biguq::Biguq, sample::Vector, horizons::Vector) # called in getfailureprobabilities
 	if !biguq.performancegoalsatisfied(sample, horizons[1])
 		return 1
 	elseif biguq.performancegoalsatisfied(sample, horizons[end])
@@ -86,10 +59,9 @@ function get_min_index_of_horizon_with_failure(biguq::Biguq, sample::Vector, hor
 end
 
 function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
-	mcmcchain = getmcmcchain(biguq, likelihoodparams)
+	@time mcmcchain = getmcmcchain(biguq, likelihoodparams)
 	failures = zeros(Int64, length(horizons))
 	for i = 1:size(mcmcchain.samples)[1]
-	#for sample in mcmcchain.samples
 		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples)[2])
 		minindex = get_min_index_of_horizon_with_failure(biguq, sample, horizons)
 		for j = minindex:length(failures)
@@ -108,26 +80,38 @@ end
 function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::Int64; numhorizons::Int64=100)
 	minlikelihoodparams = biguq.likelihoodparamsmin(hakunamatata)
 	maxlikelihoodparams = biguq.likelihoodparamsmax(hakunamatata)
-	#lhs = doe.lhs(size(minlikelihoodparams)[1], samples=numlikelihoods)
-	#likelihoodparams = similar(lhs)
 	likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
-	likelihoodhorizonindices = Array(Int64, numlikelihoods)
+	likelihoodhorizonindices = Array(Int64, numlikelihoods)#This stores the index of the smallest horizon of uncertainty containing the likelihood parameters
 	horizons = linspace(0, hakunamatata, numhorizons)
 	for i = 1:numlikelihoods
-		for j = 1:size(minlikelihoodparams)[1]
-			#likelihoodparams[i, j] = minlikelihoodparams[j] + lhs[i, j] * (maxlikelihoodparams[j] - minlikelihoodparams[j])
-			k = 1
-			likelihoodhorizonindices[i] = numhorizons
-			while k <= numlikelihoods
-				if inbox(likelihoodparams[i], biguq.likelihoodparamsmin(horizons[k]), biguq.likelihoodparamsmax(horizons[k]))
-					likelihoodhorizonindices[i] = k
-					k = numlikelihoods + 1
-				end
-				k += 1
+		k = 1
+		likelihoodhorizonindices[i] = numhorizons
+		while k <= numhorizons
+			if inbox(likelihoodparams[i], biguq.likelihoodparamsmin(horizons[k]), biguq.likelihoodparamsmax(horizons[k]))
+				likelihoodhorizonindices[i] = k
+				k = numhorizons + 1#do this to kill the loop
 			end
+			k += 1
 		end
 	end
-	failureprobs = pmap(i -> getfailureprobabilities(biguq, horizons, reshape(likelihoodparams[i, :], size(likelihoodparams)[2])), 1:size(likelihoodparams)[1])
+	likelihoodparams = [biguq.likelihoodparamsmin(0); likelihoodparams]#make sure the nominal case is in there
+	likelihoodhorizonindices = [1; likelihoodhorizonindices]
+	numlikelihoods += 1
+	reshapedparams = map(i -> reshape(likelihoodparams[i, :], size(likelihoodparams, 2)), 1:size(likelihoodparams, 1))
+	failureprobs = pmap(p -> getfailureprobabilities(biguq, horizons, p), reshapedparams)
+	#failureprobs = pmap(i -> getfailureprobabilities(biguq, horizons, reshape(likelihoodparams[i, :], size(likelihoodparams, 2))), 1:size(likelihoodparams, 1))
+	#failureprobs = map(i -> getfailureprobabilities(biguq, horizons, reshape(likelihoodparams[i, :], size(likelihoodparams, 2))), 1:size(likelihoodparams, 1))
+	#=
+	layers = Array(Any, length(failureprobs) + 1)
+	for i in 1:length(failureprobs)
+		fps = copy(failureprobs[i])
+		for j = 1:likelihoodhorizonindices[i] - 1
+			fps[j] = 0
+		end
+		println(likelihoodparams[i], " ", fps)
+		layers[i] = layer(x=horizons, y=fps, Geom.line)
+	end
+	=#
 	maxfailureprobs = zeros(numhorizons)
 	badlikelihoodparams = Array(Any, numhorizons)
 	for i = 1:numhorizons
@@ -141,6 +125,12 @@ function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::
 			end
 		end
 	end
+	#=
+	layers[end] = layer(x=horizons, y=maxfailureprobs, Geom.point)
+	p = plot(layers...)
+	draw(PNG("all-$(length(horizons)).png", 800px, 600px), p)
+	run(`open all-$(length(horizons)).png`)
+	=#
 	return maxfailureprobs, horizons, badlikelihoodparams
 end
 
