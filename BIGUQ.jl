@@ -5,6 +5,7 @@ import BlackBoxOptim
 using Gadfly
 
 type Biguq
+	#model::Function
 	makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
 	logprior::Function # the function encoding our prior beliefs
 	nominalparams # nominal parameters for the model
@@ -15,7 +16,7 @@ type Biguq
 	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int(1e3), usederivatives=false)
+function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int(1e4), usederivatives=false)
 	conditionalloglikelihood = biguq.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = biguq.logprior(params)
@@ -41,8 +42,24 @@ function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int
 	if min(ess...) < 10
 		warn(string("Low effective sample size, ", ess, ", with likelihood params ", likelihoodparams))
 	end
-	#MCMC.describe(mcmcchain)
+	#=
+	MCMC.describe(mcmcchain)
+	dh1 = Array(Float64, size(mcmcchain.samples, 1))
+	dh2 = Array(Float64, size(mcmcchain.samples, 1))
+	for i = 1:size(mcmcchain.samples, 1)
+		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples, 2))
+		dh1[i], dh2[i] = biguq.model(sample)
+	end
+	println("Upper:")
+	println("\tmin:  ", min(dh1...))
+	println("\tmean: ", mean(dh1))
+	println("\tmax:  ", max(dh1...))
+	println("Lower:")
+	println("\tmin:  ", min(dh2...))
+	println("\tmean: ", mean(dh2))
+	println("\tmax:  ", max(dh2...))
 	println("acceptance: ", MCMC.acceptance(mcmcchain))
+	=#
 	return mcmcchain
 end
 
@@ -61,13 +78,12 @@ end
 function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
 	@time mcmcchain = getmcmcchain(biguq, likelihoodparams)
 	failures = zeros(Int64, length(horizons))
-	for i = 1:size(mcmcchain.samples)[1]
-		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples)[2])
+	for i = 1:size(mcmcchain.samples, 1)
+		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples, 2))
 		minindex = get_min_index_of_horizon_with_failure(biguq, sample, horizons)
 		for j = minindex:length(failures)
 			failures[j] += 1
 		end
-		i += 1
 	end
 	return failures / size(mcmcchain.samples, 1)
 end
@@ -108,7 +124,7 @@ function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::
 		for j = 1:likelihoodhorizonindices[i] - 1
 			fps[j] = 0
 		end
-		println(likelihoodparams[i], " ", fps)
+		#println(likelihoodparams[i], " ", fps)
 		layers[i] = layer(x=horizons, y=fps, Geom.line)
 	end
 	=#
