@@ -1,8 +1,7 @@
 module BIGUQ
-import MCMC
+import Lora
 import ForwardDiff
 import BlackBoxOptim
-using Gadfly
 
 type Biguq
 	#model::Function
@@ -16,7 +15,7 @@ type Biguq
 	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int(1e4), usederivatives=false)
+function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e4), burnin=int(1e3), usederivatives=false)
 	conditionalloglikelihood = biguq.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = biguq.logprior(params)
@@ -27,39 +26,20 @@ function getmcmcchain(biguq::Biguq, likelihoodparams; steps=int(1e5), burnin=int
 		end
 	end
 	if usederivatives
-		#loglikelihoodgrad = ForwardDiff.forwarddiff_gradient(loglikelihood, Float64, n=size(biguq.nominalparams, 1))
 		loglikelihoodgrad = ForwardDiff.forwarddiff_gradient(loglikelihood, Float64, fadtype=:dual)
-		mcmcmodel = MCMC.model(loglikelihood, grad=loglikelihoodgrad, init=biguq.nominalparams)
-		rmw = MCMC.HMC(3, 1e-2)
+		mcmcmodel = Lora.model(loglikelihood, grad=loglikelihoodgrad, init=biguq.nominalparams)
+		rmw = Lora.HMC(3, 1e-2)
 	else
-		mcmcmodel = MCMC.model(loglikelihood, init=biguq.nominalparams)
-		#rmw = MCMC.RWM(1e-2)
-		rmw = MCMC.RAM(1e-0, 0.3)
+		mcmcmodel = Lora.model(loglikelihood, init=biguq.nominalparams)
+		#rmw = Lora.RWM(1e-2)
+		rmw = Lora.RAM(1e-0, 0.3)
 	end
-	smc = MCMC.SerialMC(steps=steps, burnin=burnin)
-	mcmcchain = MCMC.run(mcmcmodel, rmw, smc)
-	ess = MCMC.ess(mcmcchain)
-	if min(ess...) < 10
+	smc = Lora.SerialMC(nsteps=steps, burnin=burnin)
+	mcmcchain = Lora.run(mcmcmodel, rmw, smc)
+	ess = Lora.ess(mcmcchain)
+	if minimum(ess) < 10
 		warn(string("Low effective sample size, ", ess, ", with likelihood params ", likelihoodparams))
 	end
-	#=
-	MCMC.describe(mcmcchain)
-	dh1 = Array(Float64, size(mcmcchain.samples, 1))
-	dh2 = Array(Float64, size(mcmcchain.samples, 1))
-	for i = 1:size(mcmcchain.samples, 1)
-		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples, 2))
-		dh1[i], dh2[i] = biguq.model(sample)
-	end
-	println("Upper:")
-	println("\tmin:  ", min(dh1...))
-	println("\tmean: ", mean(dh1))
-	println("\tmax:  ", max(dh1...))
-	println("Lower:")
-	println("\tmin:  ", min(dh2...))
-	println("\tmean: ", mean(dh2))
-	println("\tmax:  ", max(dh2...))
-	println("acceptance: ", MCMC.acceptance(mcmcchain))
-	=#
 	return mcmcchain
 end
 
@@ -76,7 +56,7 @@ function get_min_index_of_horizon_with_failure(biguq::Biguq, sample::Vector, hor
 end
 
 function getfailureprobabilities(biguq::Biguq, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
-	@time mcmcchain = getmcmcchain(biguq, likelihoodparams)
+	mcmcchain = getmcmcchain(biguq, likelihoodparams)
 	failures = zeros(Int64, length(horizons))
 	for i = 1:size(mcmcchain.samples, 1)
 		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples, 2))
@@ -115,19 +95,6 @@ function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::
 	numlikelihoods += 1
 	reshapedparams = map(i -> reshape(likelihoodparams[i, :], size(likelihoodparams, 2)), 1:size(likelihoodparams, 1))
 	failureprobs = pmap(p -> getfailureprobabilities(biguq, horizons, p), reshapedparams)
-	#failureprobs = pmap(i -> getfailureprobabilities(biguq, horizons, reshape(likelihoodparams[i, :], size(likelihoodparams, 2))), 1:size(likelihoodparams, 1))
-	#failureprobs = map(i -> getfailureprobabilities(biguq, horizons, reshape(likelihoodparams[i, :], size(likelihoodparams, 2))), 1:size(likelihoodparams, 1))
-	#=
-	layers = Array(Any, length(failureprobs) + 1)
-	for i in 1:length(failureprobs)
-		fps = copy(failureprobs[i])
-		for j = 1:likelihoodhorizonindices[i] - 1
-			fps[j] = 0
-		end
-		#println(likelihoodparams[i], " ", fps)
-		layers[i] = layer(x=horizons, y=fps, Geom.line)
-	end
-	=#
 	maxfailureprobs = zeros(numhorizons)
 	badlikelihoodparams = Array(Any, numhorizons)
 	for i = 1:numhorizons
@@ -141,83 +108,7 @@ function getrobustnesscurve(biguq::Biguq, hakunamatata::Number, numlikelihoods::
 			end
 		end
 	end
-	#=
-	layers[end] = layer(x=horizons, y=maxfailureprobs, Geom.point)
-	p = plot(layers...)
-	draw(PNG("all-$(length(horizons)).png", 800px, 600px), p)
-	run(`open all-$(length(horizons)).png`)
-	=#
 	return maxfailureprobs, horizons, badlikelihoodparams
 end
 
-function getbiguq1()
-	function model(params)
-		k = params[1]
-		return k * 2
-	end
-	function makeloglikelihood(likelihoodparams)
-		N = likelihoodparams[1]
-		#return params -> -(abs(params[1] * 1 - 1.5)) ^ N
-		return params -> (params[1] <= N ? 0. : -Inf)
-	end
-	function logprior(params)
-		k = params[1]
-		if k > 0 && k < 10
-			return 0.
-		else
-			return -Inf
-		end
-	end
-	nominalparams = [2 / 3]
-	function likelihoodparamsmin(horizon)
-		[max(nominalparams[1], (1 - horizon) * 2.)]
-	end
-	function likelihoodparamsmax(horizon)
-		[(1 + horizon) * 2.]
-	end
-	function performancegoalsatisfied(params, horizon)
-		return (1 + 0.001 * horizon) * model(params) < 4.2
-	end
-	biguq = Biguq(makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied)
-	return biguq
-end
-
-function getbiguq2()
-	function model(params::Vector)
-		return params[1]
-	end
-	const data = 1 + .1 * randn(5)
-	function makeloglikelihood(likelihoodparams::Vector)
-		logvar = likelihoodparams[1]
-		var = exp(logvar)
-		return params -> -.5 * sum((data - params[1]) .^ 2) / var - logvar
-	end
-	nominalparams = [.5]
-	function logprior(params::Vector)
-		return -.5 * (params[1] - nominalparams[1]) ^ 2 / .01
-	end
-	function likelihoodparamsmin(horizon::Number)
-		return [4 - horizon]
-	end
-	function likelihoodparamsmax(horizon::Number)
-		return [4 + horizon]
-	end
-	function performancegoalsatisfied(params::Vector, horizon::Number)
-		return model(params) < .9
-	end
-	biguq = Biguq(makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied)
-end
-
-function test(biguq::Biguq)
-	numhorizons = 10
-	@time maxfailureprobs, horizons, badlikelihoodparams = getrobustnesscurve(biguq, 10, 10; numhorizons=numhorizons)
-	for i = 1:numhorizons
-		println(horizons[i], ": ", maxfailureprobs[i], " -- ", badlikelihoodparams[i])
-	end
-end
-
-#biguq1 = getbiguq1()
-#failureprobs = test(biguq1)
-#biguq2 = getbiguq2()
-#test(biguq2)
 end
