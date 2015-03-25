@@ -1,4 +1,4 @@
-import BIGUQ
+@everywhere import BIGUQ
 
 function getbiguq1()
 	function model(params)
@@ -27,7 +27,7 @@ function getbiguq1()
 	function performancegoalsatisfied(params, horizon)
 		return (1 + 0.001 * horizon) * model(params) < 4.2
 	end
-	biguq = BIGUQ.Biguq(makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied)
+	biguq = BIGUQ.BigDT(makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied)
 	return biguq
 end
 
@@ -54,10 +54,10 @@ function getbiguq2()
 	function performancegoalsatisfied(params::Vector, horizon::Number)
 		return model(params) < .9
 	end
-	biguq = BIGUQ.Biguq(makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied)
+	biguq = BIGUQ.BigDT(makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied)
 end
 
-function test(biguq::BIGUQ.Biguq)
+function test(biguq::BIGUQ.BigDT)
 	numhorizons = 10
 	@time maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(biguq, 10, 10; numhorizons=numhorizons)
 	for i = 1:numhorizons
