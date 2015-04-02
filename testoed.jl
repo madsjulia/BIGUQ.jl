@@ -1,10 +1,11 @@
-@everywhere import BIGUQ
-@everywhere import Anasol
+module testoed
+import BIGUQ
+import Anasol
+import Distributions
 
 function makebigoed1()
 	srand(0)
-	#=
-	function makemodel(params::Vector)
+	function model(params::Vector, decisionparams::Vector, xs::Vector, ts::Vector)
 		#x::Vector,tau,x01,sigma01,v1,sigma1,x02,sigma02,v2,sigma2
 		const x01 = params[1]
 		const sigma01 = params[2]
@@ -15,29 +16,10 @@ function makebigoed1()
 		const v2 = params[7]
 		const sigma2 = params[8]
 		const mass = params[9]
-		function f(xs::Vector, ts::Vector)
-			const result = Array(Float64, length(xs))
-			for i = 1:length(xs)
-				result[i] = mass * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
-			end
-			return result
-		end
-	end
-	=#
-	function model(params::Vector, xs::Vector, ts::Vector)
-		#x::Vector,tau,x01,sigma01,v1,sigma1,x02,sigma02,v2,sigma2
-		const x01 = params[1]
-		const sigma01 = params[2]
-		const v1 = params[3]
-		const sigma1 = params[4]
-		const x02 = params[5]
-		const sigma02 = params[6]
-		const v2 = params[7]
-		const sigma2 = params[8]
-		const mass = params[9]
+		const lambda = decisionparams[1]
 		const result = Array(Float64, length(xs))
 		for i = 1:length(xs)
-			result[i] = mass * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
+			result[i] = mass * exp(-lambda * max(0., ts[i] - 6.)) * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
 		end
 		return result
 	end
@@ -66,7 +48,7 @@ function makebigoed1()
 	xs[8] = [-.1, 0.]
 	xs[9] = [-.1, 0.]
 	const noiselevel = 25.
-	data = model(params, xs, ts)
+	data = model(params, [0.], xs, ts)
 	data += noiselevel * randn(length(data))
 	const proposedlocations = Array(Array{Array{Float64, 1}, 1}, 2)
 	proposedlocations[1] = Array(Array{Float64, 1}, 4)
@@ -81,7 +63,7 @@ function makebigoed1()
 	function rationalquadraticcovariance(d, sigma, alpha, k)
 		return sigma * (1. + (d * d) / (2 * alpha * k * k)) ^ (-alpha)
 	end
-	function makeresidualdistribution(geostatparams, datalocations, datatimes, proposedlocations, proposedtimes)
+	function makeresidualdistribution(geostatparams, datalocations, datatimes, proposedlocations, proposedtimes, proposedindices)
 		sigma = geostatparams[1]
 		alpha = geostatparams[2]
 		k = geostatparams[3]
@@ -121,8 +103,8 @@ function makebigoed1()
 		end
 	end
 	const compliancethreshold = 25.
-	function performancegoalsatisfied(params::Vector, horizon::Number)
-		results = model(params, compliancepoints, compliancetimes)
+	function performancegoalsatisfied(params::Vector, decisionparams::Vector, horizon::Number)
+		results = model(params, decisionparams, compliancepoints, compliancetimes)
 		results *= (1 + horizon)
 		return !any(results .> compliancethreshold)
 	end
@@ -144,10 +126,18 @@ function makebigoed1()
 			return 1.
 		end
 	end
-	return BIGUQ.BigOED(model, data, xs, ts, proposedlocations, proposedtimes, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior)
+	decisionparams = Array(Array{Float64, 1}, 2)
+	decisionparams[1] = zeros(1)
+	decisionparams[2] = ones(1)
+	return BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, map(int, ones(length(proposedlocations))), makeresidualdistribution,
+						residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams)
 end
 
-bigoed = makebigoed1()
-bigdt = BIGUQ.makebigdt(bigoed)
-@time maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdt, 1., 19; numhorizons = 101)
-BIGUQ.printresults(maxfailureprobs, horizons, badlikelihoodparams)
+const bigoed = makebigoed1()
+bigdts = BIGUQ.makebigdts(bigoed, 0)
+for bigdt in bigdts
+	@time maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdt, 1., 19; numhorizons = 101)
+	BIGUQ.printresults(maxfailureprobs, horizons, badlikelihoodparams)
+end
+
+end

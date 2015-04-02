@@ -10,7 +10,7 @@ type BigDT
 	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e7), burnin=int(1e6), usederivatives=false)
+function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e4), burnin=int(1e3), usederivatives=false)
 	conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = bigdt.logprior(params)
