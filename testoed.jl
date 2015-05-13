@@ -4,7 +4,7 @@ import Anasol
 import Distributions
 
 function makebigoed1()
-	srand(0)
+	#srand(0)
 	function model(params::Vector, decisionparams::Vector, xs::Vector, ts::Vector)
 		#x::Vector,tau,x01,sigma01,v1,sigma1,x02,sigma02,v2,sigma2
 		const x01 = params[1]
@@ -19,7 +19,7 @@ function makebigoed1()
 		const lambda = decisionparams[1]
 		const result = Array(Float64, length(xs))
 		for i = 1:length(xs)
-			result[i] = mass * exp(-lambda * max(0., ts[i] - 6.)) * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
+			result[i] = mass * exp(-lambda * max(0., ts[i] - 4.5)) * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
 		end
 		return result
 	end
@@ -60,10 +60,13 @@ function makebigoed1()
 	const proposedtimes = Array(Array{Float64, 1}, 2)
 	proposedtimes[1] = [3., 3., 3., 3.]
 	proposedtimes[2] = [3., 3., 3., 3.]
+	const proposedmodelindices = Array(Array{Int64, 1}, 2)
+	proposedmodelindices[1] = map(int, ones(length(proposedlocations[1])))
+	proposedmodelindices[2] = map(int, ones(length(proposedlocations[2])))
 	function rationalquadraticcovariance(d, sigma, alpha, k)
 		return sigma * (1. + (d * d) / (2 * alpha * k * k)) ^ (-alpha)
 	end
-	function makeresidualdistribution(geostatparams, datalocations, datatimes, proposedlocations, proposedtimes, proposedindices)
+	function makeresidualdistribution(geostatparams, datalocations, datatimes, proposedlocations, proposedtimes, proposedmodelindices)
 		sigma = geostatparams[1]
 		alpha = geostatparams[2]
 		k = geostatparams[3]
@@ -75,23 +78,24 @@ function makebigoed1()
 			for j = i+1:length(alllocations)
 				h = sqrt(norm(alllocations[i] - alllocations[j]) ^ 2 + (alltimes[i] - alltimes[j]) ^ 2)
 				covmat[i, j] = rationalquadraticcovariance(h, sigma, alpha, k)
+				covmat[j, i] = covmat[i, j]
 			end
 		end
 		return Distributions.MvNormal(covmat)
 	end
 	function residualdistributionparamsmin(horizonofuncertainty)
-		sigma = max(10., 100 - 100 * horizonofuncertainty)
+		sigma = max(1., 10 - 10 * horizonofuncertainty)
 		alpha = max(.25, 2. - horizonofuncertainty)
 		k = max(.001, .1 - .1 * horizonofuncertainty)#k is like a length scale
 		return [sigma, alpha, k]
 	end
 	function residualdistributionparamsmax(horizonofuncertainty)
-		sigma = 100 + 100 * horizonofuncertainty
+		sigma = 10 + 10 * horizonofuncertainty
 		alpha = 2. + horizonofuncertainty
 		k = .1 + .1 * horizonofuncertainty#k is like a length scale
 		return [sigma, alpha, k]
 	end
-	const nominalparams = params# + sqrt(params) .* randn(length(params)) / 100
+	const nominalparams = params + sqrt(params) .* randn(length(params)) / 100
 	const ncompliancepoints = 10
 	const ncompliancetimes = 10
 	const compliancepoints = Array(Array{Float64, 1}, ncompliancepoints * ncompliancetimes)
@@ -99,10 +103,10 @@ function makebigoed1()
 	for i = 1:ncompliancetimes
 		for j = 1:ncompliancepoints
 			compliancepoints[(i - 1) * ncompliancepoints + j] = [.5, (j - .5 * ncompliancepoints) / ncompliancepoints]
-			compliancetimes[(i - 1) * ncompliancepoints + j] = 3. + i
+			compliancetimes[(i - 1) * ncompliancepoints + j] = 4. + i
 		end
 	end
-	const compliancethreshold = 25.
+	const compliancethreshold = 150.
 	function performancegoalsatisfied(params::Vector, decisionparams::Vector, horizon::Number)
 		results = model(params, decisionparams, compliancepoints, compliancetimes)
 		results *= (1 + horizon)
@@ -128,16 +132,14 @@ function makebigoed1()
 	end
 	decisionparams = Array(Array{Float64, 1}, 2)
 	decisionparams[1] = zeros(1)
-	decisionparams[2] = ones(1)
-	return BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, map(int, ones(length(proposedlocations))), makeresidualdistribution,
-						residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams)
-end
-
-const bigoed = makebigoed1()
-bigdts = BIGUQ.makebigdts(bigoed, 0)
-for bigdt in bigdts
-	@time maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdt, 1., 19; numhorizons = 101)
-	BIGUQ.printresults(maxfailureprobs, horizons, badlikelihoodparams)
+	decisionparams[2] = 0.2 * ones(1)
+	robustnesspenalty = [0., .15]
+	println(model(params, decisionparams[1], compliancepoints, compliancetimes))
+	println(maximum(model(params, decisionparams[1], compliancepoints, compliancetimes)))
+	println(model(params, decisionparams[2], compliancepoints, compliancetimes))
+	println(maximum(model(params, decisionparams[2], compliancepoints, compliancetimes)))
+	return BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution,
+						residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty)
 end
 
 end

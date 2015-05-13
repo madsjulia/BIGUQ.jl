@@ -27,16 +27,18 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e4), burnin=int
 	else
 		mcmcmodel = Lora.model(loglikelihood, init=bigdt.nominalparams)
 		#rmw = Lora.RWM(1e-2)
-		rmw = Lora.RAM(1e-0, 0.3)
+		rmw = Lora.RAM(1e-1, 0.3)
 	end
 	smc = Lora.SerialMC(nsteps=steps, burnin=burnin, thinning=100)
 	mcmcchain = Lora.run(mcmcmodel, rmw, smc)
-	println(mcmcchain)
+	#=
 	Lora.describe(mcmcchain)
+	println(mcmcchain)
 	ess = Lora.ess(mcmcchain)
 	if minimum(ess) < 10
 		warn(string("Low effective sample size, ", ess, ", with likelihood params ", likelihoodparams))
 	end
+	=#
 	return mcmcchain
 end
 
@@ -124,3 +126,35 @@ function dataframeresults(maxfailureprobs, horizons, badlikelihoodparams)
 	return DataFrames.DataFrame(horizon=horizons, maxfailureprob=maxfailureprobs, badlikelihoodparams=badlikelihoodparams)
 end
 
+function getrobustness(maxfailureprobs, horizons, acceptableprobabilityoffailure)
+	if acceptableprobabilityoffailure <= maxfailureprobs[1]
+		return horizons[1]
+	elseif acceptableprobabilityoffailure >= maxfailureprobs[end]
+		return horizons[end]
+	end
+	i = 2
+	while maxfailureprobs[i] < acceptableprobabilityoffailure
+		i += 1
+	end
+	#do linear interpolation and find where the line hits acceptableprobabilityoffailure
+	return horizons[i - 1] + (acceptableprobabilityoffailure - maxfailureprobs[i - 1]) * (horizons[i] - horizons[i - 1]) / (maxfailureprobs[i] - maxfailureprobs[i - 1])
+end
+
+function makedecision(bigdts::Array{BigDT, 1}, acceptableprobabilityoffailure, hakunamatata, numlikelihoods, numhorizons; robustnesspenalty=zeros(length(bigdts)))
+	maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdts[1], hakunamatata, numlikelihoods; numhorizons=numhorizons)
+	bestrobustness = BIGUQ.getrobustness(maxfailureprobs, horizons, acceptableprobabilityoffailure) + robustnesspenalty[1]
+	println("robustness[1]: $bestrobustness")
+	BIGUQ.printresults(maxfailureprobs, horizons, badlikelihoodparams)
+	decision = 1
+	for i = 2:length(bigdts)
+		maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdts[i], hakunamatata, numlikelihoods; numhorizons=numhorizons)
+		BIGUQ.printresults(maxfailureprobs, horizons, badlikelihoodparams)
+		robustness = BIGUQ.getrobustness(maxfailureprobs, horizons, acceptableprobabilityoffailure) - robustnesspenalty[i]
+		println("robustness[$i]: $robustness")
+		if robustness > bestrobustness
+			bestrobustness = robustness
+			decision = i
+		end
+	end
+	return decision
+end
