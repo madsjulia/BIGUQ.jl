@@ -10,7 +10,7 @@ type BigDT
 	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
 end
 
-function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e4), burnin=int(1e3), usederivatives=false)
+function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e5), burnin=int(1e4), usederivatives=false)
 	conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = bigdt.logprior(params)
@@ -29,7 +29,7 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e4), burnin=int
 		#rmw = Lora.RWM(1e-2)
 		rmw = Lora.RAM(1e-1, 0.3)
 	end
-	smc = Lora.SerialMC(nsteps=steps, burnin=burnin, thinning=100)
+	smc = Lora.SerialMC(nsteps=steps, burnin=burnin, thinning=10)
 	mcmcchain = Lora.run(mcmcmodel, rmw, smc)
 	#=
 	Lora.describe(mcmcchain)
@@ -141,20 +141,16 @@ function getrobustness(maxfailureprobs, horizons, acceptableprobabilityoffailure
 end
 
 function makedecision(bigdts::Array{BigDT, 1}, acceptableprobabilityoffailure, hakunamatata, numlikelihoods, numhorizons; robustnesspenalty=zeros(length(bigdts)))
-	maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdts[1], hakunamatata, numlikelihoods; numhorizons=numhorizons)
-	bestrobustness = BIGUQ.getrobustness(maxfailureprobs, horizons, acceptableprobabilityoffailure) + robustnesspenalty[1]
-	println("robustness[1]: $bestrobustness")
-	BIGUQ.printresults(maxfailureprobs, horizons, badlikelihoodparams)
-	decision = 1
-	for i = 2:length(bigdts)
-		maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdts[i], hakunamatata, numlikelihoods; numhorizons=numhorizons)
-		BIGUQ.printresults(maxfailureprobs, horizons, badlikelihoodparams)
-		robustness = BIGUQ.getrobustness(maxfailureprobs, horizons, acceptableprobabilityoffailure) - robustnesspenalty[i]
-		println("robustness[$i]: $robustness")
-		if robustness > bestrobustness
-			bestrobustness = robustness
-			decision = i
-		end
+	maxfailureprobsarray = Array(Array{Float64, 1}, length(bigdts))
+	horizonsarray = Array(Array{Float64, 1}, length(bigdts))
+	for i = 1:length(bigdts)
+		maxfailureprobsarray[i], horizonsarray[i], throwaway = getrobustnesscurve(bigdts[i], hakunamatata, numlikelihoods; numhorizons=numhorizons)
 	end
+	return makedecision(maxfailureprobsarray, horizonsarray, acceptableprobabilityoffailure; robustnesspenalty=robustnesspenalty)
+end
+
+function makedecision(maxfailureprobsarray::Array{Array{Float64, 1}}, horizonsarray::Array{Array{Float64, 1}}, acceptableprobabilityoffailure; robustnesspenalty=zeros(length(maxfailureprobsarray)))
+	robustnesses = map(i->getrobustness(maxfailureprobsarray[i], horizonsarray[i], acceptableprobabilityoffailure) - robustnesspenalty[i], 1:length(maxfailureprobsarray))
+	decision = indmax(robustnesses)
 	return decision
 end

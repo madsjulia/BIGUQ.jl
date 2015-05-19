@@ -50,23 +50,28 @@ function makebigoed1()
 	const noiselevel = 25.
 	data = model(params, [0.], xs, ts)
 	data += noiselevel * randn(length(data))
-	const proposedlocations = Array(Array{Array{Float64, 1}, 1}, 2)
+	const proposedlocations = Array(Array{Array{Float64, 1}, 1}, 3)
 	proposedlocations[1] = Array(Array{Float64, 1}, 4)
 	proposedlocations[1][1:3] = xs[1:3:7]
 	proposedlocations[1][4] = [-2., 1.]
 	proposedlocations[2] = Array(Array{Float64, 1}, 4)
 	proposedlocations[2][1:3] = xs[1:3:7]
 	proposedlocations[2][4] = [-2.1, 1.1]
-	const proposedtimes = Array(Array{Float64, 1}, 2)
+	proposedlocations[3] = Array(Array{Float64, 1}, 4)
+	proposedlocations[3][1:3] = xs[1:3:7]
+	proposedlocations[3][4] = [-10., 10.]
+	const proposedtimes = Array(Array{Float64, 1}, 3)
 	proposedtimes[1] = [3., 3., 3., 3.]
 	proposedtimes[2] = [3., 3., 3., 3.]
-	const proposedmodelindices = Array(Array{Int64, 1}, 2)
+	proposedtimes[3] = [3., 3., 3., 3.]
+	const proposedmodelindices = Array(Array{Int64, 1}, 3)
 	proposedmodelindices[1] = map(int, ones(length(proposedlocations[1])))
 	proposedmodelindices[2] = map(int, ones(length(proposedlocations[2])))
+	proposedmodelindices[3] = map(int, ones(length(proposedlocations[3])))
 	function rationalquadraticcovariance(d, sigma, alpha, k)
 		return sigma * (1. + (d * d) / (2 * alpha * k * k)) ^ (-alpha)
 	end
-	function makeresidualdistribution(geostatparams, datalocations, datatimes, proposedlocations, proposedtimes, proposedmodelindices)
+	function makeresidualdistribution(geostatparams, datalocations, datatimes, datamodelindices, proposedlocations, proposedtimes, proposedmodelindices)
 		sigma = geostatparams[1]
 		alpha = geostatparams[2]
 		k = geostatparams[3]
