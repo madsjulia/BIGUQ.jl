@@ -134,10 +134,10 @@ function dobigoed(bigoed::BigOED, hakunamatata, numlikelihoods, numhorizons, num
 			decision = makedecision(maxfailureprobsarray, horizonsarray, acceptableprobabilityoffailure; robustnesspenalty=bigoed.robustnesspenalty)
 			decisionprobabilities[i, decision] += 1
 			iterationscomplete += 1
+			f = open("progress.txt", "w")
+			write(f, "$(iterationscomplete / length(bigoed.proposedlocations) / numobsrealizations)\n")
+			close(f)
 		end
-		f = open("progress.txt", "w")
-		write(f, "$(iterationscomplete / length(bigoed.proposedlocations) / numobsrealizations)\n")
-		close(f)
 	end
 	decisionprobabilities /= numobsrealizations
 	println("Decision probabilities:\n$decisionprobabilities")
