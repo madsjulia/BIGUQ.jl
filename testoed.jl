@@ -19,7 +19,8 @@ function makebigoed1()
 		const lambda = decisionparams[1]
 		const result = Array(Float64, length(xs))
 		for i = 1:length(xs)
-			result[i] = mass * exp(-lambda * max(0., ts[i] - 4.5)) * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
+			#the background concentration is 5
+			result[i] = 5. + mass * exp(-lambda * max(0., ts[i] - 4.5)) * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
 		end
 		return result
 	end
@@ -53,10 +54,10 @@ function makebigoed1()
 	const proposedlocations = Array(Array{Array{Float64, 1}, 1}, 3)
 	proposedlocations[1] = Array(Array{Float64, 1}, 4)
 	proposedlocations[1][1:3] = xs[1:3:7]
-	proposedlocations[1][4] = [-2., 1.]
+	proposedlocations[1][4] = [.25, 0.]
 	proposedlocations[2] = Array(Array{Float64, 1}, 4)
 	proposedlocations[2][1:3] = xs[1:3:7]
-	proposedlocations[2][4] = [-2.1, 1.1]
+	proposedlocations[2][4] = [.25, -.25]
 	proposedlocations[3] = Array(Array{Float64, 1}, 4)
 	proposedlocations[3][1:3] = xs[1:3:7]
 	proposedlocations[3][4] = [-10., 10.]
@@ -111,7 +112,7 @@ function makebigoed1()
 			compliancetimes[(i - 1) * ncompliancepoints + j] = 4. + i
 		end
 	end
-	const compliancethreshold = 150.
+	const compliancethreshold = 155.
 	function performancegoalsatisfied(params::Vector, decisionparams::Vector, horizon::Number)
 		results = model(params, decisionparams, compliancepoints, compliancetimes)
 		results *= (1 + horizon)

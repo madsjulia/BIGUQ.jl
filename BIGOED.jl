@@ -101,12 +101,16 @@ function generateproposedobs(bigoed::BigOED, proposedindex, numobsrealizations; 
 	proposedtimes = bigoed.proposedtimes[proposedindex]
 	proposedmodelindices = bigoed.proposedmodelindices[proposedindex]
 	proposedobsarray = Array(Array{Float64, 1}, numobsrealizations)
+	proposedobsresidualdistribution = bigoed.makeresidualdistribution(likelihoodparams, [], [], [], proposedlocations, proposedtimes, proposedmodelindices)
 	for i = 1:numobsrealizations
 		proposedobsarray[i] = Array(Float64, length(proposedtimes))
 		for j = 1:length(bigoed.models)
 			goodindices = (proposedmodelindices .== j)
 			proposedobsarray[i][goodindices] = bigoed.models[j](vec(mcmcchain.samples[i, :]), bigoed.decisionparams[1], proposedlocations[goodindices], proposedtimes[goodindices])
 		end
+		#TODO maybe make the residual conditioned on the residuals between the model and the existing observations
+		residual = rand(proposedobsresidualdistribution)
+		proposedobsarray[i] += residual
 	end
 	return proposedobsarray
 end
