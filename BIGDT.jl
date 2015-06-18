@@ -89,9 +89,8 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 			k += 1
 		end
 	end
-	temp = similar(likelihoodparams, (1, size(likelihoodparams, 2)))
-	temp[1:end] = bigdt.likelihoodparamsmin(0)
-	likelihoodparams = [temp; likelihoodparams]#make sure the nominal case is in there
+	temp = copy(bigdt.likelihoodparamsmin(0))
+	likelihoodparams = [temp likelihoodparams]#make sure the nominal case is in there
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	reshapedparams = map(i -> reshape(likelihoodparams[i, :], size(likelihoodparams, 2)), 1:size(likelihoodparams, 1))
