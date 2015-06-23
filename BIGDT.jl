@@ -54,6 +54,7 @@ function get_min_index_of_horizon_with_failure(bigdt::BigDT, sample::Vector, hor
 	end
 end
 
+#! Get failure probablities using Markov Chain Monte Carlo
 function getfailureprobabilities(bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
 	mcmcchain = getmcmcchain(bigdt, likelihoodparams)
 	failures = zeros(Int64, length(horizons))
@@ -67,12 +68,46 @@ function getfailureprobabilities(bigdt::BigDT, horizons::Vector, likelihoodparam
 	return failures / size(mcmcchain.samples, 1)
 end
 
+#! Make getfailureprobablities function using Latin Hypercube Sampling
+function makegetfailureprobabilities_lhs(minmodelparams::Vector, maxmodelparams::Vector, nummodelparams::Int64)
+  return (bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) -> begin
+    const conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams) #TODO: write this in a more DRY manner...
+    function loglikelihood(params)
+      l1 = bigdt.logprior(params)
+      if l1 == -Inf
+        return -Inf
+      else
+        return l1 + conditionalloglikelihood(params)
+      end
+    end
+    modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minmodelparams, maxmodelparams, nummodelparams);
+    @assert size(modelparams, 2) == nummodelparams;
+   
+    sumweights = 0;
+    failures = zeros(Int64, length(horizons));
+    for i = 1:nummodelparams
+      params_i = modelparams[:,i]; #NOTE: a subarray view should reduce GC and allocation, however when profiled the view ran much slower
+      wij = conditionalloglikelihood(params_i);
+      sumweights += wij;
+      minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons);
+      for j = minindex:length(failures)
+        failures[j] += wij
+      end
+    end
+    return failures / sumweights;
+  end
+end
 
 function inbox(x, mins, maxs) # called in getrobustnesscurve
 	return all(map(<=, x, maxs)) && all(map(>=, x, mins))
 end
 
-function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::Int64; numhorizons::Int64=100)
+#! BigDT robustness curve
+#!
+#! \param bigdt BigDT object
+#! \param hakunamatata Maximum horizon of uncertainity that is relevant
+#! \param numlikelihoods 
+function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::Int64; getfailureprobfnct::Function=getfailureprobabilities, numhorizons::Int64=100)
 	minlikelihoodparams = bigdt.likelihoodparamsmin(hakunamatata)
 	maxlikelihoodparams = bigdt.likelihoodparamsmax(hakunamatata)
 	likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
@@ -84,7 +119,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 		while k <= numhorizons
 			if inbox(likelihoodparams[i], bigdt.likelihoodparamsmin(horizons[k]), bigdt.likelihoodparamsmax(horizons[k]))
 				likelihoodhorizonindices[i] = k
-				k = numhorizons + 1#do this to kill the loop
+        break;
 			end
 			k += 1
 		end
@@ -94,7 +129,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	reshapedparams = map(i -> reshape(likelihoodparams[i, :], size(likelihoodparams, 2)), 1:size(likelihoodparams, 1))
-	failureprobs = pmap(p -> getfailureprobabilities(bigdt, horizons, p), reshapedparams)
+	failureprobs = pmap(p -> getfailureprobfnct(bigdt, horizons, p), reshapedparams)
 	maxfailureprobs = zeros(numhorizons)
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)
 	for i = 1:numhorizons
