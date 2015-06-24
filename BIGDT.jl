@@ -1,3 +1,5 @@
+# @everywhere using ArrayViews
+
 type BigDT
 	#model::Function
 	makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
@@ -59,7 +61,7 @@ function getfailureprobabilities(bigdt::BigDT, horizons::Vector, likelihoodparam
 	mcmcchain = getmcmcchain(bigdt, likelihoodparams)
 	failures = zeros(Int64, length(horizons))
 	for i = 1:size(mcmcchain.samples, 1)
-		sample = reshape(mcmcchain.samples[i, :], size(mcmcchain.samples, 2))
+		sample = vec(mcmcchain.samples[i, :])
 		minindex = get_min_index_of_horizon_with_failure(bigdt, sample, horizons)
 		for j = minindex:length(failures)
 			failures[j] += 1
@@ -86,8 +88,9 @@ function makegetfailureprobabilities_lhs(minmodelparams::Vector, maxmodelparams:
     sumweights = 0;
     failures = zeros(Int64, length(horizons));
     for i = 1:nummodelparams
-      params_i = modelparams[:,i]; #NOTE: a subarray view should reduce GC and allocation, however when profiled the view ran much slower
-      wij = conditionalloglikelihood(params_i);
+      # params_i = view(modelparams, :, i); NOTE: views with by more efficient and reduce GC
+      params_i = modelparams[:,i];
+      wij = loglikelihood(params_i);
       sumweights += wij;
       minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons);
       for j = minindex:length(failures)
@@ -106,7 +109,9 @@ end
 #!
 #! \param bigdt BigDT object
 #! \param hakunamatata Maximum horizon of uncertainity that is relevant
-#! \param numlikelihoods 
+#! \param numlikelihoods Number of likelihood params to sample from the likelihood space
+#! \param getfailureprobfnct Function for calculating failure probabilities
+#! \param numhorizons Number of horizons of uncertainty
 function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::Int64; getfailureprobfnct::Function=getfailureprobabilities, numhorizons::Int64=100)
 	minlikelihoodparams = bigdt.likelihoodparamsmin(hakunamatata)
 	maxlikelihoodparams = bigdt.likelihoodparamsmax(hakunamatata)
@@ -129,9 +134,15 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	reshapedparams = map(i -> reshape(likelihoodparams[i, :], size(likelihoodparams, 2)), 1:size(likelihoodparams, 1))
+  println("reshapedparams, ", reshapedparams);
+  show(reshapedparams);
 	failureprobs = pmap(p -> getfailureprobfnct(bigdt, horizons, p), reshapedparams)
 	maxfailureprobs = zeros(numhorizons)
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)
+  println("failureprobs: ", failureprobs);
+  println(size(failureprobs));
+  println(numlikelihoods, ", ", numhorizons);
+  error("break");
 	for i = 1:numhorizons
 		badlikelihoodparams[i] = bigdt.likelihoodparamsmin(0.)[1:end]
 	end
