@@ -86,7 +86,7 @@ function makegetfailureprobabilities_lhs(minmodelparams::Vector, maxmodelparams:
     @assert size(modelparams, 2) == nummodelparams;
    
     sumweights = 0;
-    failures = zeros(Int64, length(horizons));
+    failures = zeros(Float64, length(horizons));
     for i = 1:nummodelparams
       # params_i = view(modelparams, :, i); NOTE: views with by more efficient and reduce GC
       params_i = modelparams[:,i];
@@ -116,45 +116,39 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	minlikelihoodparams = bigdt.likelihoodparamsmin(hakunamatata)
 	maxlikelihoodparams = bigdt.likelihoodparamsmax(hakunamatata)
 	likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
-	likelihoodhorizonindices = Array(Int64, numlikelihoods)#This stores the index of the smallest horizon of uncertainty containing the likelihood parameters
 	horizons = linspace(0, hakunamatata, numhorizons)
+
+  # find `likelihoodhorizonindices`, or the index of the smallest horizon of uncertainty containing the parameters
+	likelihoodhorizonindices = fill(numhorizons, numlikelihoods)
 	for i = 1:numlikelihoods
 		k = 1
-		likelihoodhorizonindices[i] = numhorizons
 		while k <= numhorizons
 			if inbox(likelihoodparams[i], bigdt.likelihoodparamsmin(horizons[k]), bigdt.likelihoodparamsmax(horizons[k]))
-				likelihoodhorizonindices[i] = k
+				likelihoodhorizonindices[i] = k;
         break;
 			end
-			k += 1
+			k += 1;
 		end
 	end
+
 	temp = copy(bigdt.likelihoodparamsmin(0))
 	likelihoodparams = [temp likelihoodparams]#make sure the nominal case is in there
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
-	reshapedparams = map(i -> reshape(likelihoodparams[i, :], size(likelihoodparams, 2)), 1:size(likelihoodparams, 1))
-  println("reshapedparams, ", reshapedparams);
-  show(reshapedparams);
-	failureprobs = pmap(p -> getfailureprobfnct(bigdt, horizons, p), reshapedparams)
+	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
+	failureprobs = pmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
 	maxfailureprobs = zeros(numhorizons)
+
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)
-  println("failureprobs: ", failureprobs);
-  println(size(failureprobs));
-  println(numlikelihoods, ", ", numhorizons);
-  error("break");
 	for i = 1:numhorizons
 		badlikelihoodparams[i] = bigdt.likelihoodparamsmin(0.)[1:end]
 	end
+
 	for i = 1:numlikelihoods
 		for k = likelihoodhorizonindices[i]:numhorizons
 			if failureprobs[i][k] > maxfailureprobs[k]
 				maxfailureprobs[k] = failureprobs[i][k]
-				if size(likelihoodparams, 2) == 1
-					badlikelihoodparams[k] = [likelihoodparams[i]]
-				else
-					badlikelihoodparams[k] = vec(likelihoodparams[i, :])
-				end
+				badlikelihoodparams[k] = likelihoodparams[:, i]
 			end
 		end
 	end
