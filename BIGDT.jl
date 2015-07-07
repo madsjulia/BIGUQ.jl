@@ -1,7 +1,6 @@
 # @everywhere using ArrayViews
 
 type BigDT
-	#model::Function
 	makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
 	logprior::Function # the function encoding our prior beliefs
 	nominalparams # nominal parameters for the model
@@ -71,9 +70,11 @@ function getfailureprobabilities(bigdt::BigDT, horizons::Vector, likelihoodparam
 end
 
 #! Make getfailureprobablities function using Latin Hypercube Sampling
-function makegetfailureprobabilities_lhs(minmodelparams::Vector, maxmodelparams::Vector, nummodelparams::Int64)
+function makegetfailureprobabilities_mc(modelparams::Matrix)
+  const nummodelparams = size(modelparams, 2);
+
   return (bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) -> begin
-    const conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams) #TODO: write this in a more DRY manner...
+    const conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams);
     function loglikelihood(params)
       l1 = bigdt.logprior(params)
       if l1 == -Inf
@@ -82,15 +83,13 @@ function makegetfailureprobabilities_lhs(minmodelparams::Vector, maxmodelparams:
         return l1 + conditionalloglikelihood(params)
       end
     end
-    modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minmodelparams, maxmodelparams, nummodelparams);
-    @assert size(modelparams, 2) == nummodelparams;
    
     sumweights = 0;
     failures = zeros(Float64, length(horizons));
     for i = 1:nummodelparams
       # params_i = view(modelparams, :, i); NOTE: views with by more efficient and reduce GC
       params_i = modelparams[:,i];
-      wij = loglikelihood(params_i);
+      wij = exp(loglikelihood(params_i));
       sumweights += wij;
       minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons);
       for j = minindex:length(failures)
