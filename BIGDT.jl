@@ -89,7 +89,7 @@ function makegetfailureprobabilities_mc(modelparams::Matrix)
     for i = 1:nummodelparams
       # params_i = view(modelparams, :, i); NOTE: views with by more efficient and reduce GC
       params_i = modelparams[:,i];
-      wij = exp(loglikelihood(params_i));
+	  wij = exp(loglikelihood(params_i));
       sumweights += wij;
       minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons);
       for j = minindex:length(failures)
