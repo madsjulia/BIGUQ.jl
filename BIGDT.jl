@@ -71,33 +71,33 @@ end
 
 #! Make getfailureprobablities function using Latin Hypercube Sampling
 function makegetfailureprobabilities_mc(modelparams::Matrix)
-  const nummodelparams = size(modelparams, 2);
+	const nummodelparams = size(modelparams, 2);
 
-  return (bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) -> begin
-    const conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams);
-    function loglikelihood(params)
-      l1 = bigdt.logprior(params)
-      if l1 == -Inf
-        return -Inf
-      else
-        return l1 + conditionalloglikelihood(params)
-      end
-    end
-   
-    sumweights = 0;
-    failures = zeros(Float64, length(horizons));
-    for i = 1:nummodelparams
-      # params_i = view(modelparams, :, i); NOTE: views with by more efficient and reduce GC
-      params_i = modelparams[:,i];
-	  wij = exp(loglikelihood(params_i));
-      sumweights += wij;
-      minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons);
-      for j = minindex:length(failures)
-        failures[j] += wij
-      end
-    end
-    return failures / sumweights;
-  end
+	return (bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) -> begin
+		const conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams);
+		function loglikelihood(params)
+			l1 = bigdt.logprior(params)
+			if l1 == -Inf
+				return -Inf
+			else
+				return l1 + conditionalloglikelihood(params)
+			end
+		end
+
+		sumweights = 0;
+		failures = zeros(Float64, length(horizons));
+		for i = 1:nummodelparams
+			# params_i = view(modelparams, :, i); NOTE: views with by more efficient and reduce GC
+			params_i = modelparams[:,i];
+			wij = exp(loglikelihood(params_i));
+			sumweights += wij;
+			minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons);
+			for j = minindex:length(failures)
+				failures[j] += wij
+			end
+		end
+		return failures / sumweights;
+	end
 end
 
 function inbox(x, mins, maxs) # called in getrobustnesscurve
@@ -117,14 +117,14 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
 	horizons = linspace(0, hakunamatata, numhorizons)
 
-  # find `likelihoodhorizonindices`, or the index of the smallest horizon of uncertainty containing the parameters
+	# find `likelihoodhorizonindices`, or the index of the smallest horizon of uncertainty containing the parameters
 	likelihoodhorizonindices = fill(numhorizons, numlikelihoods)
 	for i = 1:numlikelihoods
 		k = 1
 		while k <= numhorizons
 			if inbox(likelihoodparams[i], bigdt.likelihoodparamsmin(horizons[k]), bigdt.likelihoodparamsmax(horizons[k]))
 				likelihoodhorizonindices[i] = k;
-        break;
+				break;
 			end
 			k += 1;
 		end
