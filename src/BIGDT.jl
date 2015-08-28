@@ -84,17 +84,30 @@ function makegetfailureprobabilities_mc(modelparams::Matrix)
 			end
 		end
 
-		sumweights = 0;
+		sumweights = 0.;
 		failures = zeros(Float64, length(horizons));
+		loglikelihoods = Array(Float64, nummodelparams)
+		weights = Array(Float64, nummodelparams)
+		for i = 1:nummodelparams
+			params_i = modelparams[:,i];
+			loglikelihoods[i] = loglikelihood(params_i);
+		end
+		maxloglikelihood = maximum(loglikelihoods)
 		for i = 1:nummodelparams
 			# params_i = view(modelparams, :, i); NOTE: views with by more efficient and reduce GC
 			params_i = modelparams[:,i];
-			wij = exp(loglikelihood(params_i));
+			weights[i] = exp(loglikelihoods[i] - maxloglikelihood)
+			wij = exp(loglikelihoods[i] - maxloglikelihood)
 			sumweights += wij;
 			minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons);
 			for j = minindex:length(failures)
 				failures[j] += wij
 			end
+		end
+		if sumweights == 0.
+			error("All samples have zero weight. likelihoodparams: $likelihoodparams")
+		elseif sumweights == 1.
+			warn("All or nearly all the weight was in one sample. likelihoodparams: $likelihoodparams")
 		end
 		return failures / sumweights;
 	end
