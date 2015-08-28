@@ -8,7 +8,7 @@ type BigDT
 	likelihoodparamsmin::Function # gives us the minimums of the likelihood params as a function of the horizon of uncertainty
 	likelihoodparamsmax::Function # gives us the maximums of the likelihood params as a function of the horizon of uncertainty
 	# now include a function that tells us whether the performance goal is satisfied -- this function includes information about the model uncertainty
-	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model output and the horizon of uncertainty
+	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model parameters and the horizon of uncertainty
 end
 
 function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e5), burnin=int(1e4), usederivatives=false)
