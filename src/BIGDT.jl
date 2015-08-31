@@ -3,12 +3,20 @@
 type BigDT
 	makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
 	logprior::Function # the function encoding our prior beliefs
-	nominalparams # nominal parameters for the model
+	nominalparams::Vector # nominal parameters for the model
 	# now include functions that tell us about the infogap uncertainty model
 	likelihoodparamsmin::Function # gives us the minimums of the likelihood params as a function of the horizon of uncertainty
 	likelihoodparamsmax::Function # gives us the maximums of the likelihood params as a function of the horizon of uncertainty
 	# now include a function that tells us whether the performance goal is satisfied -- this function includes information about the model uncertainty
 	performancegoalsatisfied::Function # tells us whether the performance goal is satisfied as a function of the model parameters and the horizon of uncertainty
+	gethorizonoffailure::Function
+	useperformancegoalsatisfied::Bool
+	function BigDT(makeloglikelihood::Function, logprior::Function, nominalparams::Vector, likelihoodparamsmin::Function, likelihoodparamsmax::Function, performancegoalsatisfied::Function)
+		return new(makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied, ()->1, true)
+	end
+	function BigDT(makeloglikelihood::Function, logprior::Function, nominalparams::Vector, likelihoodparamsmin::Function, likelihoodparamsmax::Function, performancegoalsatisfied::Function, gethorizonoffailure::Function)
+		return new(makeloglikelihood, logprior, nominalparams, likelihoodparamsmin, likelihoodparamsmax, performancegoalsatisfied, gethorizonoffailure, false)
+	end
 end
 
 function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e5), burnin=int(1e4), usederivatives=false)
@@ -43,16 +51,44 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e5), burnin=int
 	return mcmcchain
 end
 
-#TODO I see sense in the function name; I guess this Matt
 function get_min_index_of_horizon_with_failure(bigdt::BigDT, sample::Vector, horizons::Vector) # called in getfailureprobabilities
-	if !bigdt.performancegoalsatisfied(sample, horizons[1])
-		return 1
-	elseif bigdt.performancegoalsatisfied(sample, horizons[end])
-		return length(horizons) + 1
-	elseif bigdt.performancegoalsatisfied(sample, horizons[int(.5 * length(horizons))])
-		return int(.5 * length(horizons)) + get_min_index_of_horizon_with_failure(bigdt, sample, horizons[int(.5 * length(horizons)) + 1:end])
+	if bigdt.useperformancegoalsatisfied
+		return get_min_index_of_horizon_with_failure(bigdt.performancegoalsatisfied, sample, horizons)
 	else
-		return get_min_index_of_horizon_with_failure(bigdt, sample, horizons[1:int(.5 * length(horizons)) - 1])
+		return get_min_index_of_horizon_with_failure(sample, horizons, bigdt.gethorizonoffailure)
+	end
+end
+
+function get_min_index_of_horizon_with_failure(sample::Vector, horizons::Vector, gethorizonoffailure::Function)
+	horizonoffailure = gethorizonoffailure(sample)
+	maxindex = length(horizons)
+	minindex = 1
+	while maxindex > minindex + 1
+		midindex = int(.5 * (maxindex + minindex))
+		if horizonoffailure == horizons[midindex]
+			return midindex
+		elseif horizonoffailure < horizons[midindex]
+			minindex = midindex
+		else
+			maxindex = midindex
+		end
+	end
+	if horizonoffailure > horizons[maxindex]
+		return maxindex
+	else
+		return minindex
+	end
+end
+
+function get_min_index_of_horizon_with_failure(performancegoalsatisfied::Function, sample::Vector, horizons::Vector)
+	if !performancegoalsatisfied(sample, horizons[1])
+		return 1
+	elseif performancegoalsatisfied(sample, horizons[end])
+		return length(horizons) + 1
+	elseif performancegoalsatisfied(sample, horizons[int(.5 * length(horizons))])
+		return int(.5 * length(horizons)) + get_min_index_of_horizon_with_failure(performancegoalsatisfied, sample, horizons[int(.5 * length(horizons)) + 1:end])
+	else
+		return get_min_index_of_horizon_with_failure(performancegoalsatisfied, sample, horizons[1:int(.5 * length(horizons)) - 1])
 	end
 end
 
@@ -150,9 +186,9 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	numlikelihoods += 1
 	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
 	#TODO collect the number of total forward runs
-	info("Computing probability of failure ...")
+	#info("Computing probability of failure ...")
 	failureprobs = pmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
-	info("done.")
+	#info("done.")
 	maxfailureprobs = zeros(numhorizons)
 
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)

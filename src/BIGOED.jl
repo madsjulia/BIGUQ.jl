@@ -16,6 +16,7 @@ type BigOED
 	logprior::Function
 	decisionparams::Array{Array{Float64, 1}, 1}#an array of decision parameter arrays representing different possible decisions
 	robustnesspenalty::Array{Float64, 1}#an array indicating how much robustness this decision costs
+	gethorizonoffailure::Function#a function that takes parameters, decision parameters, and returns the lowest horizon at which failure occurs
 end
 
 #makes the bigdts for each possible decision assuming that no more observations will be made
@@ -40,7 +41,7 @@ function makebigdts(bigoed::BigOED)
 	end
 	bigdts = Array(BigDT, length(bigoed.decisionparams))
 	for i = 1:length(bigoed.decisionparams)
-		bigdts[i] = BIGUQ.BigDT(likelihoodparams->makeloglikelihood(likelihoodparams, i), bigoed.logprior, bigoed.nominalparams, bigoed.residualdistributionparamsmin, bigoed.residualdistributionparamsmax, (params::Array{Float64, 1}, horizon::Float64)->bigoed.performancegoalsatisfied(params, bigoed.decisionparams[i], horizon))
+		bigdts[i] = BIGUQ.BigDT(likelihoodparams->makeloglikelihood(likelihoodparams, i), bigoed.logprior, bigoed.nominalparams, bigoed.residualdistributionparamsmin, bigoed.residualdistributionparamsmax, (params::Array{Float64, 1}, horizon::Float64)->bigoed.performancegoalsatisfied(params, bigoed.decisionparams[i], horizon), (params::Array{Float64, 1})->bigoed.gethorizonoffailure(params, bigoed.decisionparams[i]))
 	end
 	return bigdts
 end
@@ -73,7 +74,7 @@ function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
 	end
 	bigdts = Array(BigDT, length(bigoed.decisionparams))
 	for i = 1:length(bigoed.decisionparams)
-		bigdts[i] = BIGUQ.BigDT(likelihoodparams->makeloglikelihood(likelihoodparams, i), bigoed.logprior, bigoed.nominalparams, bigoed.residualdistributionparamsmin, bigoed.residualdistributionparamsmax, (params::Array{Float64, 1}, horizon::Float64)->bigoed.performancegoalsatisfied(params, bigoed.decisionparams[i], horizon))
+		bigdts[i] = BIGUQ.BigDT(likelihoodparams->makeloglikelihood(likelihoodparams, i), bigoed.logprior, bigoed.nominalparams, bigoed.residualdistributionparamsmin, bigoed.residualdistributionparamsmax, (params::Array{Float64, 1}, horizon::Float64)->bigoed.performancegoalsatisfied(params, bigoed.decisionparams[i], horizon), (params::Array{Float64, 1})->bigoed.gethorizonoffailure(params, bigoed.decisionparams[i]))
 	end
 	return bigdts
 end

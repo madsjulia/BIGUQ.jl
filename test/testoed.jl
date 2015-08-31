@@ -128,6 +128,12 @@ function makebigoed1()
 		results *= (1 + horizon)
 		return !any(results .> compliancethreshold)
 	end
+	function gethorizonoffailure(params::Vector, decisionparams::Vector)
+		results = model(params, decisionparams, compliancepoints, compliancetimes)
+		minhorizonoffailure::Float64 = Inf
+		horizonsoffailure = max(0., compliancethreshold ./ results - 1)
+		return minimum(horizonsoffailure)
+	end
 	const x01bounds = [-1., 1.]
 	const sigma01bounds = [1e-6, 1e-1]
 	const v1bounds = [1e-2, 5e-1]
@@ -150,12 +156,12 @@ function makebigoed1()
 	decisionparams[1] = zeros(1)
 	decisionparams[2] = 0.2 * ones(1)
 	robustnesspenalty = [0., .15]
-	@show typeof(decisionparams[1])
 	println(model(params, decisionparams[1], compliancepoints, compliancetimes))
 	println(maximum(model(params, decisionparams[1], compliancepoints, compliancetimes)))
 	println(model(params, decisionparams[2], compliancepoints, compliancetimes))
 	println(maximum(model(params, decisionparams[2], compliancepoints, compliancetimes)))
-	return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty)
+	#return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty)
+	return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
 end
 
 end

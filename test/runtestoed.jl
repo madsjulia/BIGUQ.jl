@@ -1,5 +1,7 @@
 import testoed
 import BlackBoxOptim
+import ProfileView
+
 @everywhere srand(0)
 nummodelruns = 500
 hakunamatata = 1.
@@ -9,8 +11,12 @@ numobsrealizations = 30
 acceptableprobabilityoffailure = 0.1
 paramsmin, paramsmax, bigoed = testoed.makebigoed1()
 modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(paramsmin, paramsmax, nummodelruns)
-decisionprobabilities = BIGUQ.dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
-println(decisionprobabilities)
+Profile.init(10 ^ 7, 0.005)
+Profile.clear()
+decisionprobabilities = @profile BIGUQ.dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
+ProfileView.svgwrite("bigoed.svg")
+#decisionprobabilities = BIGUQ.dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
+#println(decisionprobabilities)
 #=
 bigdts = BIGUQ.makebigdts(bigoed)
 decisionindex = BIGUQ.makedecision(bigdts, 0.1, 1., 19, 11; robustnesspenalty=bigoed.robustnesspenalty)
