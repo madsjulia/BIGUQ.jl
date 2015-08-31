@@ -2,27 +2,37 @@ module testoed
 import BIGUQ
 import Anasol
 import Distributions
+import R3Function
 
 function makebigoed1()
 	#srand(0)
-	function model(params::Vector, decisionparams::Vector, xs::Vector, ts::Vector)
+	function innermodel(p::Vector)
+		local paramx = p[1:9]
+		local decisionparams = p[10:10]
+		local numxs = (length(p) - 10) / 2
+		local xs = p[11:10 + numxs]
+		local ts = p[11 + numxs:10 + 2 * numxs]
 		#x::Vector,tau,x01,sigma01,v1,sigma1,x02,sigma02,v2,sigma2
-		const x01 = params[1]
-		const sigma01 = params[2]
-		const v1 = params[3]
-		const sigma1 = params[4]
-		const x02 = params[5]
-		const sigma02 = params[6]
-		const v2 = params[7]
-		const sigma2 = params[8]
-		const mass = params[9]
-		const lambda = decisionparams[1]
-		const result = Array(Float64, length(xs))
+		local const x01 = params[1]
+		local const sigma01 = params[2]
+		local const v1 = params[3]
+		local const sigma1 = params[4]
+		local const x02 = params[5]
+		local const sigma02 = params[6]
+		local const v2 = params[7]
+		local const sigma2 = params[8]
+		local const mass = params[9]
+		local const lambda = decisionparams[1]
+		local const result = Array(Float64, length(xs))
 		for i = 1:length(xs)
 			#the background concentration is 5
 			result[i] = 5. + mass * exp(-lambda * max(0., ts[i] - 4.5)) * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
 		end
 		return result
+	end
+	r3innermodel = R3Function.maker3function(innermodel)
+	function model(params::Vector, decisionparams::Vector, xs::Vector, ts::Vector)
+		r3innermodel([params[1:end], decisionparams[1:end], xs[1:end], ts[1:end]])
 	end
 	#set up the "truth"
 	const x01 = 0.
@@ -73,12 +83,12 @@ function makebigoed1()
 		return sigma * (1. + (d * d) / (2 * alpha * k * k)) ^ (-alpha)
 	end
 	function makeresidualdistribution(geostatparams, datalocations, datatimes, datamodelindices, proposedlocations, proposedtimes, proposedmodelindices)
-		sigma = geostatparams[1]
-		alpha = geostatparams[2]
-		k = geostatparams[3]
+		local sigma = geostatparams[1]
+		local alpha = geostatparams[2]
+		local k = geostatparams[3]
 		const alllocations = [datalocations; proposedlocations]
 		const alltimes = [datatimes; proposedtimes]
-		covmat = Array(Float64, (length(alllocations), length(alllocations)))
+		local covmat = Array(Float64, (length(alllocations), length(alllocations)))
 		for i = 1:length(alllocations)
 			covmat[i, i] = rationalquadraticcovariance(0., sigma, alpha, k)
 			for j = i+1:length(alllocations)
@@ -90,15 +100,15 @@ function makebigoed1()
 		return Distributions.MvNormal(covmat)
 	end
 	function residualdistributionparamsmin(horizonofuncertainty)
-		sigma = max(1., 10 - 10 * horizonofuncertainty)
-		alpha = max(.25, 2. - horizonofuncertainty)
-		k = max(.001, .1 - .1 * horizonofuncertainty)#k is like a length scale
+		local sigma = max(1., 10 - 10 * horizonofuncertainty)
+		local alpha = max(.25, 2. - horizonofuncertainty)
+		local k = max(.001, .1 - .1 * horizonofuncertainty)#k is like a length scale
 		return [sigma, alpha, k]
 	end
 	function residualdistributionparamsmax(horizonofuncertainty)
-		sigma = 10 + 10 * horizonofuncertainty
-		alpha = 2. + horizonofuncertainty
-		k = .1 + .1 * horizonofuncertainty#k is like a length scale
+		local sigma = 10 + 10 * horizonofuncertainty
+		local alpha = 2. + horizonofuncertainty
+		local k = .1 + .1 * horizonofuncertainty#k is like a length scale
 		return [sigma, alpha, k]
 	end
 	const nominalparams = params + sqrt(params) .* randn(length(params)) / 100
@@ -140,12 +150,12 @@ function makebigoed1()
 	decisionparams[1] = zeros(1)
 	decisionparams[2] = 0.2 * ones(1)
 	robustnesspenalty = [0., .15]
+	@show typeof(decisionparams[1])
 	println(model(params, decisionparams[1], compliancepoints, compliancetimes))
 	println(maximum(model(params, decisionparams[1], compliancepoints, compliancetimes)))
 	println(model(params, decisionparams[2], compliancepoints, compliancetimes))
 	println(maximum(model(params, decisionparams[2], compliancepoints, compliancetimes)))
-	return BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution,
-						residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty)
+	return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty)
 end
 
 end

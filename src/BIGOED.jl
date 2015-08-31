@@ -78,7 +78,7 @@ function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
 	return bigdts
 end
 
-function generateproposedobs(bigoed::BigOED, proposedindex, numobsrealizations; thinning=100, burnin=int(1e4))
+function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizations::Int; thinning::Int=100, burnin::Int=100)
 	#setup and do the mcmc sampling
 	likelihoodparams = bigoed.residualdistributionparamsmin(0.)
 	residualdistribution = bigoed.makeresidualdistribution(likelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, [], [], [])
@@ -115,12 +115,20 @@ function generateproposedobs(bigoed::BigOED, proposedindex, numobsrealizations; 
 	return proposedobsarray
 end
 
-function dobigoed(bigoed::BigOED, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure)
+function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numhorizons::Int, numobsrealizations::Int, acceptableprobabilityoffailure::Real, modelparams::Matrix)
+	return dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, makegetfailureprobabilities_mc(modelparams))
+end
+
+function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numhorizons::Int, numobsrealizations::Int, acceptableprobabilityoffailure::Real)
+	return dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, getfailureprobabilities)
+end
+
+function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numhorizons::Int, numobsrealizations::Int, acceptableprobabilityoffailure::Real, getfailureprobfnct::Function=getfailureprobabilities)
 	bigdts = makebigdts(bigoed)
 	maxfailureprobsarray = Array(Array{Float64, 1}, length(bigdts))
 	horizonsarray = Array(Array{Float64, 1}, length(bigdts))
 	for i = 1:length(bigdts)
-		maxfailureprobsarray[i], horizonsarray[i], badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdts[i], hakunamatata, numlikelihoods; numhorizons=numhorizons)
+		maxfailureprobsarray[i], horizonsarray[i], badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdts[i], hakunamatata, numlikelihoods; numhorizons=numhorizons, getfailureprobfnct=getfailureprobfnct)
 		println("Initial decision $i robustness curve:")
 		printresults(maxfailureprobsarray[i], horizonsarray[i], badlikelihoodparams)
 	end
@@ -133,7 +141,7 @@ function dobigoed(bigoed::BigOED, hakunamatata, numlikelihoods, numhorizons, num
 		for j = 1:numobsrealizations#iterate through each realization of the proposed observations
 			bigdts = makebigdts(bigoed, i, proposedobsarray[j])
 			for k = 1:length(bigdts)
-				maxfailureprobsarray[k], horizonsarray[k], throwaway = getrobustnesscurve(bigdts[k], hakunamatata, numlikelihoods; numhorizons=numhorizons)
+				maxfailureprobsarray[k], horizonsarray[k], throwaway = getrobustnesscurve(bigdts[k], hakunamatata, numlikelihoods; numhorizons=numhorizons, getfailureprobfnct=getfailureprobfnct)
 			end
 			decision = makedecision(maxfailureprobsarray, horizonsarray, acceptableprobabilityoffailure; robustnesspenalty=bigoed.robustnesspenalty)
 			decisionprobabilities[i, decision] += 1

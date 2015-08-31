@@ -1,7 +1,15 @@
 import testoed
+import BlackBoxOptim
 @everywhere srand(0)
-bigoed = testoed.makebigoed1()
-decisionprobabilities = BIGUQ.dobigoed(bigoed, 1., 60, 101, 100, 0.1)
+nummodelruns = 500
+hakunamatata = 1.
+numlikelihoods = 25
+numhorizons = 101
+numobsrealizations = 30
+acceptableprobabilityoffailure = 0.1
+paramsmin, paramsmax, bigoed = testoed.makebigoed1()
+modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(paramsmin, paramsmax, nummodelruns)
+decisionprobabilities = BIGUQ.dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
 println(decisionprobabilities)
 #=
 bigdts = BIGUQ.makebigdts(bigoed)
