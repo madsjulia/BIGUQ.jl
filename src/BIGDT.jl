@@ -149,6 +149,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
+	#TODO collect the number of total forward runs
 	info("Computing probability of failure ...")
 	failureprobs = pmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
 	info("done.")
