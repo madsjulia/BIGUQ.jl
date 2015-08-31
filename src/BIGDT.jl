@@ -43,6 +43,7 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e5), burnin=int
 	return mcmcchain
 end
 
+#TODO I see sense in the function name; I guess this Matt
 function get_min_index_of_horizon_with_failure(bigdt::BigDT, sample::Vector, horizons::Vector) # called in getfailureprobabilities
 	if !bigdt.performancegoalsatisfied(sample, horizons[1])
 		return 1
@@ -144,11 +145,14 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	end
 
 	temp = copy(bigdt.likelihoodparamsmin(0))
-	likelihoodparams = [temp likelihoodparams]#make sure the nominal case is in there
+	likelihoodparams = [temp likelihoodparams] # make sure the nominal case is in there
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
+	#TODO collect the number of total forward runs
+	info("Computing probability of failure ...")
 	failureprobs = pmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
+	info("done.")
 	maxfailureprobs = zeros(numhorizons)
 
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)
