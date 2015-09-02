@@ -68,9 +68,9 @@ function get_min_index_of_horizon_with_failure(sample::Vector, horizons::Vector,
 		if horizonoffailure == horizons[midindex]
 			return midindex
 		elseif horizonoffailure < horizons[midindex]
-			minindex = midindex
-		else
 			maxindex = midindex
+		else
+			minindex = midindex
 		end
 	end
 	if horizonoffailure > horizons[maxindex]
