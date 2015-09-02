@@ -79,7 +79,7 @@ function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
 	return bigdts
 end
 
-function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizations::Int; thinning::Int=100, burnin::Int=100)
+function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizations::Int; thinning::Int=1000, burnin::Int=10000)
 	#setup and do the mcmc sampling
 	likelihoodparams = bigoed.residualdistributionparamsmin(0.)
 	residualdistribution = bigoed.makeresidualdistribution(likelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, [], [], [])
@@ -124,6 +124,18 @@ function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numho
 	return dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, getfailureprobabilities)
 end
 
+function makedecisionforproposedobs(proposedobsarray, i, bigoed, numhorizons, getfailureprobfnct)
+	local bigdts = makebigdts(bigoed, i, proposedobsarray)
+	local maxfailureprobsarray = Array(Array{Float64, 1}, length(bigdts))
+	local horizonsarray = Array(Array{Float64, 1}, length(bigdts))
+	@show myid()
+	for k = 1:length(bigdts)
+		maxfailureprobsarray[k], horizonsarray[k], throwaway = getrobustnesscurve(bigdts[k], hakunamatata, numlikelihoods; numhorizons=numhorizons, getfailureprobfnct=getfailureprobfnct)
+	end
+	decision = makedecision(maxfailureprobsarray, horizonsarray, acceptableprobabilityoffailure; robustnesspenalty=bigoed.robustnesspenalty)
+	return decision
+end
+
 function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numhorizons::Int, numobsrealizations::Int, acceptableprobabilityoffailure::Real, getfailureprobfnct::Function=getfailureprobabilities)
 	bigdts = makebigdts(bigoed)
 	maxfailureprobsarray = Array(Array{Float64, 1}, length(bigdts))
@@ -138,7 +150,16 @@ function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numho
 	decisionprobabilities = zeros(length(bigoed.proposedlocations), length(bigoed.decisionparams))
 	iterationscomplete = 0
 	for i = 1:length(bigoed.proposedlocations)#iterate through each possible data collection effort
-		proposedobsarray = generateproposedobs(bigoed, i, numobsrealizations)
+		@time proposedobsarray = generateproposedobs(bigoed, i, numobsrealizations)
+		#=
+		println("about to pmap decisions")
+		decisions = pmap((proposedobs, i, bigoed)->makedecisionforproposedobs(proposedobs, i, bigoed, numhorizons, getfailureprobfnct), proposedobsarray, fill(i, numobsrealizations), fill(bigoed, numobsrealizations); err_stop=true)
+		println("done with pmap decisions")
+		for j = 1:length(decisions)
+			decisionprobabilities[i, decisions[i]] += 1
+		end
+		=#
+		#TODO parallelize the loop on 'j'
 		for j = 1:numobsrealizations#iterate through each realization of the proposed observations
 			bigdts = makebigdts(bigoed, i, proposedobsarray[j])
 			for k = 1:length(bigdts)
@@ -146,10 +167,6 @@ function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numho
 			end
 			decision = makedecision(maxfailureprobsarray, horizonsarray, acceptableprobabilityoffailure; robustnesspenalty=bigoed.robustnesspenalty)
 			decisionprobabilities[i, decision] += 1
-			iterationscomplete += 1
-			f = open("progress.txt", "w")
-			write(f, "$(iterationscomplete / length(bigoed.proposedlocations) / numobsrealizations)\n")
-			close(f)
 		end
 	end
 	decisionprobabilities /= numobsrealizations

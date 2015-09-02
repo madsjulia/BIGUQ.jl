@@ -4,10 +4,11 @@ import Anasol
 import Distributions
 import R3Function
 
-function makebigoed1()
+#@everywhere begin
+#function makebigoed1()
 	#srand(0)
 	function innermodel(p::Vector)
-		local paramx = p[1:9]
+		local params = p[1:9]
 		local decisionparams = p[10:10]
 		local numxs = (length(p) - 10) / 2
 		local xs = p[11:10 + numxs]
@@ -32,7 +33,8 @@ function makebigoed1()
 	end
 	r3innermodel = R3Function.maker3function(innermodel)
 	function model(params::Vector, decisionparams::Vector, xs::Vector, ts::Vector)
-		r3innermodel([params[1:end], decisionparams[1:end], xs[1:end], ts[1:end]])
+		#return r3innermodel([params[1:end]; decisionparams[1:end]; xs[1:end]; ts[1:end]])
+		return innermodel([params[1:end]; decisionparams[1:end]; xs[1:end]; ts[1:end]])
 	end
 	#set up the "truth"
 	const x01 = 0.
@@ -76,9 +78,9 @@ function makebigoed1()
 	proposedtimes[2] = [3., 3., 3., 3.]
 	proposedtimes[3] = [3., 3., 3., 3.]
 	const proposedmodelindices = Array(Array{Int64, 1}, 3)
-	proposedmodelindices[1] = map(int, ones(length(proposedlocations[1])))
-	proposedmodelindices[2] = map(int, ones(length(proposedlocations[2])))
-	proposedmodelindices[3] = map(int, ones(length(proposedlocations[3])))
+	proposedmodelindices[1] = ones(Int, length(proposedlocations[1]))
+	proposedmodelindices[2] = ones(Int, length(proposedlocations[2]))
+	proposedmodelindices[3] = ones(Int, length(proposedlocations[3]))
 	function rationalquadraticcovariance(d, sigma, alpha, k)
 		return sigma * (1. + (d * d) / (2 * alpha * k * k)) ^ (-alpha)
 	end
@@ -134,6 +136,18 @@ function makebigoed1()
 		horizonsoffailure = max(0., compliancethreshold ./ results - 1)
 		return minimum(horizonsoffailure)
 	end
+	#=
+	const x01 = 0.
+	const sigma01 = 1e-3
+	const v1 = 1e-1
+	const sigma1 = sqrt(1e-1)
+	const x02 = 0.
+	const sigma02 = 1e-3
+	const v2 = 1e-2
+	const sigma2 = sqrt(1e-2)
+	const mass = 1e2
+	=#
+	#=
 	const x01bounds = [-1., 1.]
 	const sigma01bounds = [1e-6, 1e-1]
 	const v1bounds = [1e-2, 5e-1]
@@ -143,6 +157,16 @@ function makebigoed1()
 	const v2bounds = [-5e-1, 5e-1]
 	const sigma2bounds = [sqrt(1e-4), sqrt(1e0)]
 	const massbounds = [1e1, 3e2]
+	=#
+	const x01bounds = [-.1, .1]
+	const sigma01bounds = [5e-4, 2e-3]
+	const v1bounds = [5e-2, 2e-1]
+	const sigma1bounds = [sqrt(5e-2), sqrt(2e-1)]
+	const x02bounds = [-.1, .1]
+	const sigma02bounds = [5e-4, 2e-3]
+	const v2bounds = [-5e-2, 5e-2]
+	const sigma2bounds = [sqrt(5e-3), sqrt(2e-2)]
+	const massbounds = [5e1, 2e2]
 	const paramsmin = [x01bounds[1], sigma01bounds[1], v1bounds[1], sigma1bounds[1], x02bounds[1], sigma02bounds[1], v2bounds[1], sigma2bounds[1], massbounds[1]]
 	const paramsmax = [x01bounds[2], sigma01bounds[2], v1bounds[2], sigma1bounds[2], x02bounds[2], sigma02bounds[2], v2bounds[2], sigma2bounds[2], massbounds[2]]
 	function logprior(params::Vector)
@@ -161,7 +185,8 @@ function makebigoed1()
 	println(model(params, decisionparams[2], compliancepoints, compliancetimes))
 	println(maximum(model(params, decisionparams[2], compliancepoints, compliancetimes)))
 	#return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty)
-	return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
-end
+	#return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, ones(Int, length(data)), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
+bigoed1 = BIGUQ.BigOED([model], data, xs, ts, ones(Int, length(data)), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
+#end
 
 end

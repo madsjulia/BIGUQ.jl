@@ -1,22 +1,32 @@
+#include("testoed.jl")
 import testoed
 import BlackBoxOptim
-import ProfileView
+#import ProfileView
 
 @everywhere srand(0)
-nummodelruns = 500
+nummodelruns = 25
 hakunamatata = 1.
-numlikelihoods = 25
+numlikelihoods = 60
 numhorizons = 101
-numobsrealizations = 30
+numobsrealizations = 100
 acceptableprobabilityoffailure = 0.1
-paramsmin, paramsmax, bigoed = testoed.makebigoed1()
-modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(paramsmin, paramsmax, nummodelruns)
+#paramsmin, paramsmax, bigoed = testoed.makebigoed1()
+modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(testoed.paramsmin, testoed.paramsmax, nummodelruns)
+for decisionparam in testoed.decisionparams
+	for i = 1:nummodelruns
+		println(decisionparam, " ", testoed.gethorizonoffailure(modelparams[:, i], decisionparam))
+	end
+end
+#=
 Profile.init(10 ^ 7, 0.005)
 Profile.clear()
 decisionprobabilities = @profile BIGUQ.dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
 ProfileView.svgwrite("bigoed.svg")
-#decisionprobabilities = BIGUQ.dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
-#println(decisionprobabilities)
+=#
+#=
+@time decisionprobabilities = BIGUQ.dobigoed(testoed.bigoed1, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
+println(decisionprobabilities)
+=#
 #=
 bigdts = BIGUQ.makebigdts(bigoed)
 decisionindex = BIGUQ.makedecision(bigdts, 0.1, 1., 19, 11; robustnesspenalty=bigoed.robustnesspenalty)
