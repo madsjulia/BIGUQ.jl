@@ -146,7 +146,7 @@ function makegetfailureprobabilities_mc(modelparams::Matrix)
 		elseif sumweights == 1.
 			warn("All or nearly all the weight was in one sample. likelihoodparams: $likelihoodparams")
 		end
-		return failures / sumweights;
+		return failures / sumweights
 	end
 end
 
@@ -161,10 +161,12 @@ end
 #! \param numlikelihoods Number of likelihood params to sample from the likelihood space
 #! \param getfailureprobfnct Function for calculating failure probabilities
 #! \param numhorizons Number of horizons of uncertainty
-function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::Int64; getfailureprobfnct::Function=getfailureprobabilities, numhorizons::Int64=100)
-	minlikelihoodparams = bigdt.likelihoodparamsmin(hakunamatata)
-	maxlikelihoodparams = bigdt.likelihoodparamsmax(hakunamatata)
-	likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
+function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::Int64; getfailureprobfnct::Function=getfailureprobabilities, numhorizons::Int64=100, likelihoodparams::Matrix=zeros(0, 0))
+	if length(likelihoodparams) == 0
+		minlikelihoodparams = bigdt.likelihoodparamsmin(hakunamatata)
+		maxlikelihoodparams = bigdt.likelihoodparamsmax(hakunamatata)
+		likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
+	end
 	horizons = linspace(0, hakunamatata, numhorizons)
 
 	# find `likelihoodhorizonindices`, or the index of the smallest horizon of uncertainty containing the parameters
