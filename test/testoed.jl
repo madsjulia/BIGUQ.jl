@@ -72,7 +72,7 @@ import R3Function
 	proposedlocations[2][4] = [.25, -.25]
 	proposedlocations[3] = Array(Array{Float64, 1}, 4)
 	proposedlocations[3][1:3] = xs[1:3:7]
-	proposedlocations[3][4] = [-10., 10.]
+	proposedlocations[3][4] = [.25, .25]
 	const proposedtimes = Array(Array{Float64, 1}, 3)
 	proposedtimes[1] = [3., 3., 3., 3.]
 	proposedtimes[2] = [3., 3., 3., 3.]
@@ -82,7 +82,12 @@ import R3Function
 	proposedmodelindices[2] = ones(Int, length(proposedlocations[2]))
 	proposedmodelindices[3] = ones(Int, length(proposedlocations[3]))
 	function rationalquadraticcovariance(d, sigma, alpha, k)
-		return sigma * (1. + (d * d) / (2 * alpha * k * k)) ^ (-alpha)
+		nuggetvariance = 30.
+		if d == 0.
+			return nuggetvariance + sigma * (1. + (d * d) / (2 * alpha * k * k)) ^ (-alpha)
+		else
+			return sigma * (1. + (d * d) / (2 * alpha * k * k)) ^ (-alpha)
+		end
 	end
 	function makeresidualdistribution(geostatparams, datalocations, datatimes, datamodelindices, proposedlocations, proposedtimes, proposedmodelindices)
 		local sigma = geostatparams[1]
@@ -102,15 +107,15 @@ import R3Function
 		return Distributions.MvNormal(covmat)
 	end
 	function residualdistributionparamsmin(horizonofuncertainty)
-		local sigma = max(1., 10 - 10 * horizonofuncertainty)
+		local sigma = max(1., 100. * (1 - horizonofuncertainty))
 		local alpha = max(.25, 2. - horizonofuncertainty)
-		local k = max(.001, .1 - .1 * horizonofuncertainty)#k is like a length scale
+		local k = max(.001, .1 * (1 - horizonofuncertainty))#k is like a length scale
 		return [sigma, alpha, k]
 	end
 	function residualdistributionparamsmax(horizonofuncertainty)
-		local sigma = 10 + 10 * horizonofuncertainty
+		local sigma = 100. * (1 + horizonofuncertainty)
 		local alpha = 2. + horizonofuncertainty
-		local k = .1 + .1 * horizonofuncertainty#k is like a length scale
+		local k = .1 * (1 + horizonofuncertainty)#k is like a length scale
 		return [sigma, alpha, k]
 	end
 	const nominalparams = params + sqrt(params) .* randn(length(params)) / 100
@@ -137,17 +142,6 @@ import R3Function
 		return minimum(horizonsoffailure)
 	end
 	#=
-	const x01 = 0.
-	const sigma01 = 1e-3
-	const v1 = 1e-1
-	const sigma1 = sqrt(1e-1)
-	const x02 = 0.
-	const sigma02 = 1e-3
-	const v2 = 1e-2
-	const sigma2 = sqrt(1e-2)
-	const mass = 1e2
-	=#
-	#=
 	const x01bounds = [-1., 1.]
 	const sigma01bounds = [1e-6, 1e-1]
 	const v1bounds = [1e-2, 5e-1]
@@ -158,15 +152,15 @@ import R3Function
 	const sigma2bounds = [sqrt(1e-4), sqrt(1e0)]
 	const massbounds = [1e1, 3e2]
 	=#
-	const x01bounds = [-.1, .1]
-	const sigma01bounds = [5e-4, 2e-3]
-	const v1bounds = [5e-2, 2e-1]
-	const sigma1bounds = [sqrt(5e-2), sqrt(2e-1)]
-	const x02bounds = [-.1, .1]
-	const sigma02bounds = [5e-4, 2e-3]
-	const v2bounds = [-5e-2, 5e-2]
-	const sigma2bounds = [sqrt(5e-3), sqrt(2e-2)]
-	const massbounds = [5e1, 2e2]
+	const x01bounds = [-.05, .05]
+	const sigma01bounds = [7.5e-4, 1.5e-3]
+	const v1bounds = [7.5e-2, 1.5e-1]
+	const sigma1bounds = [sqrt(7.5e-2), sqrt(1.5e-1)]
+	const x02bounds = [-.05, .05]
+	const sigma02bounds = [7.5e-4, 1.5e-3]
+	const v2bounds = [-2e-2, 2e-2]
+	const sigma2bounds = [sqrt(7.5e-3), sqrt(1.5e-2)]
+	const massbounds = [7.5e1, 1.5e2]
 	const paramsmin = [x01bounds[1], sigma01bounds[1], v1bounds[1], sigma1bounds[1], x02bounds[1], sigma02bounds[1], v2bounds[1], sigma2bounds[1], massbounds[1]]
 	const paramsmax = [x01bounds[2], sigma01bounds[2], v1bounds[2], sigma1bounds[2], x02bounds[2], sigma02bounds[2], v2bounds[2], sigma2bounds[2], massbounds[2]]
 	function logprior(params::Vector)
@@ -180,10 +174,12 @@ import R3Function
 	decisionparams[1] = zeros(1)
 	decisionparams[2] = 0.2 * ones(1)
 	robustnesspenalty = [0., .15]
+	#=
 	println(model(params, decisionparams[1], compliancepoints, compliancetimes))
 	println(maximum(model(params, decisionparams[1], compliancepoints, compliancetimes)))
 	println(model(params, decisionparams[2], compliancepoints, compliancetimes))
 	println(maximum(model(params, decisionparams[2], compliancepoints, compliancetimes)))
+	=#
 	#return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty)
 	#return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, ones(Int, length(data)), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
 bigoed1 = BIGUQ.BigOED([model], data, xs, ts, ones(Int, length(data)), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
