@@ -79,7 +79,8 @@ function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
 	return bigdts
 end
 
-function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizations::Int; thinning::Int=1000, burnin::Int=10000)
+#TODO make this so that all the bigdts get proposed observations that come from the same model runs
+function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizations::Int; thinning::Int=10000, burnin::Int=10000)
 	#setup and do the mcmc sampling
 	likelihoodparams = bigoed.residualdistributionparamsmin(0.)
 	residualdistribution = bigoed.makeresidualdistribution(likelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, [], [], [])
@@ -150,7 +151,7 @@ function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numho
 	decisionprobabilities = zeros(length(bigoed.proposedlocations), length(bigoed.decisionparams))
 	iterationscomplete = 0
 	for i = 1:length(bigoed.proposedlocations)#iterate through each possible data collection effort
-		@time proposedobsarray = generateproposedobs(bigoed, i, numobsrealizations)
+		proposedobsarray = generateproposedobs(bigoed, i, numobsrealizations)
 		#=
 		println("about to pmap decisions")
 		decisions = pmap((proposedobs, i, bigoed)->makedecisionforproposedobs(proposedobs, i, bigoed, numhorizons, getfailureprobfnct), proposedobsarray, fill(i, numobsrealizations), fill(bigoed, numobsrealizations); err_stop=true)
@@ -160,10 +161,13 @@ function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numho
 		end
 		=#
 		#TODO parallelize the loop on 'j'
+		minlikelihoodparams = bigoed.residualdistributionparamsmin(hakunamatata)
+		maxlikelihoodparams = bigoed.residualdistributionparamsmax(hakunamatata)
+		likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
 		for j = 1:numobsrealizations#iterate through each realization of the proposed observations
 			bigdts = makebigdts(bigoed, i, proposedobsarray[j])
 			for k = 1:length(bigdts)
-				maxfailureprobsarray[k], horizonsarray[k], throwaway = getrobustnesscurve(bigdts[k], hakunamatata, numlikelihoods; numhorizons=numhorizons, getfailureprobfnct=getfailureprobfnct)
+				maxfailureprobsarray[k], horizonsarray[k], throwaway = getrobustnesscurve(bigdts[k], hakunamatata, numlikelihoods; numhorizons=numhorizons, getfailureprobfnct=getfailureprobfnct, likelihoodparams=likelihoodparams)
 			end
 			decision = makedecision(maxfailureprobsarray, horizonsarray, acceptableprobabilityoffailure; robustnesspenalty=bigoed.robustnesspenalty)
 			decisionprobabilities[i, decision] += 1

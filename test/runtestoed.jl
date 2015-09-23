@@ -3,30 +3,35 @@ import testoed
 import BlackBoxOptim
 #import ProfileView
 
-@everywhere srand(0)
-nummodelruns = 25
+nummodelruns = 100000
 hakunamatata = 1.
 numlikelihoods = 60
-numhorizons = 101
-numobsrealizations = 100
+numhorizons = 301
+numobsrealizations = 1000
 acceptableprobabilityoffailure = 0.1
 #paramsmin, paramsmax, bigoed = testoed.makebigoed1()
+@everywhere srand(0)
 modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(testoed.paramsmin, testoed.paramsmax, nummodelruns)
+@everywhere srand(0)
+residualdistribution = testoed.makeresidualdistribution(testoed.residualdistributionparamsmin(0.), testoed.bigoed1.obslocations, testoed.bigoed1.obstimes, testoed.bigoed1.obsmodelindices, [], [], [])
 for decisionparam in testoed.decisionparams
+	llhoods = Float64[]
+	maxllhood = -Inf
 	for i = 1:nummodelruns
-		println(decisionparam, " ", testoed.gethorizonoffailure(modelparams[:, i], decisionparam))
+		push!(llhoods, Distributions.logpdf(residualdistribution, testoed.bigoed1.obs - testoed.bigoed1.models[1](modelparams[:, i], decisionparam, testoed.bigoed1.obslocations, testoed.bigoed1.obstimes)))
+		maxllhood = max(maxllhood, llhoods[end])
+	end
+	println(exp(sort(llhoods)[end-20:end] - sort(llhoods)[end]))
+	for i = 1:nummodelruns
+		println(decisionparam, " ", testoed.gethorizonoffailure(modelparams[:, i], decisionparam), " ", exp(-maxllhood + Distributions.logpdf(residualdistribution, testoed.bigoed1.obs - testoed.bigoed1.models[1](modelparams[:, i], decisionparam, testoed.bigoed1.obslocations, testoed.bigoed1.obstimes))))
 	end
 end
 #=
-Profile.init(10 ^ 7, 0.005)
-Profile.clear()
-decisionprobabilities = @profile BIGUQ.dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
-ProfileView.svgwrite("bigoed.svg")
+bigdts = BIGUQ.makebigdts(testoed.bigoed1)
+maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdts[1], hakunamatata, numlikelihoods; numhorizons = 11)
 =#
-#=
 @time decisionprobabilities = BIGUQ.dobigoed(testoed.bigoed1, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, modelparams)
 println(decisionprobabilities)
-=#
 #=
 bigdts = BIGUQ.makebigdts(bigoed)
 decisionindex = BIGUQ.makedecision(bigdts, 0.1, 1., 19, 11; robustnesspenalty=bigoed.robustnesspenalty)
