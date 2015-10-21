@@ -63,6 +63,7 @@ function test(biguq::BIGUQ.BigDT)
 	for i = 1:numhorizons
 		println(horizons[i], ": ", maxfailureprobs[i], " -- ", badlikelihoodparams[i])
 	end
+	return true
 end
 
 biguq1 = getbiguq1()

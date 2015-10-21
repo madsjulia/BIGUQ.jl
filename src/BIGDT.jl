@@ -19,7 +19,7 @@ type BigDT
 	end
 end
 
-function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=int(1e5), burnin=int(1e4), usederivatives=false)
+function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=round(Int, 1e5), burnin=round(Int, 1e4), usederivatives=false)
 	conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = bigdt.logprior(params)
@@ -64,7 +64,7 @@ function get_min_index_of_horizon_with_failure(sample::Vector, horizons::Vector,
 	maxindex = length(horizons)
 	minindex = 1
 	while maxindex > minindex + 1
-		midindex = int(.5 * (maxindex + minindex))
+		midindex = round(Int, .5 * (maxindex + minindex))
 		if horizonoffailure == horizons[midindex]
 			return midindex
 		elseif horizonoffailure < horizons[midindex]
@@ -85,10 +85,10 @@ function get_min_index_of_horizon_with_failure(performancegoalsatisfied::Functio
 		return 1
 	elseif performancegoalsatisfied(sample, horizons[end])
 		return length(horizons) + 1
-	elseif performancegoalsatisfied(sample, horizons[int(.5 * length(horizons))])
-		return int(.5 * length(horizons)) + get_min_index_of_horizon_with_failure(performancegoalsatisfied, sample, horizons[int(.5 * length(horizons)) + 1:end])
+	elseif performancegoalsatisfied(sample, horizons[round(Int, .5 * length(horizons))])
+		return round(Int, .5 * length(horizons)) + get_min_index_of_horizon_with_failure(performancegoalsatisfied, sample, horizons[round(Int, .5 * length(horizons)) + 1:end])
 	else
-		return get_min_index_of_horizon_with_failure(performancegoalsatisfied, sample, horizons[1:int(.5 * length(horizons)) - 1])
+		return get_min_index_of_horizon_with_failure(performancegoalsatisfied, sample, horizons[1:round(Int, .5 * length(horizons)) - 1])
 	end
 end
 
@@ -151,7 +151,7 @@ function makegetfailureprobabilities_mc(modelparams::Matrix)
 end
 
 function inbox(x, mins, maxs) # called in getrobustnesscurve
-	return all(map(<=, x, maxs)) && all(map(>=, x, mins))
+	return reduce(&, map(<=, x, maxs)) && reduce(&, map(>=, x, mins))
 end
 
 #! BigDT robustness curve
@@ -167,7 +167,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 		maxlikelihoodparams = bigdt.likelihoodparamsmax(hakunamatata)
 		likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
 	end
-	horizons = linspace(0, hakunamatata, numhorizons)
+	horizons = collect(linspace(0, hakunamatata, numhorizons))
 
 	# find `likelihoodhorizonindices`, or the index of the smallest horizon of uncertainty containing the parameters
 	likelihoodhorizonindices = fill(numhorizons, numlikelihoods)
@@ -187,10 +187,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
-	#TODO collect the number of total forward runs
-	#info("Computing probability of failure ...")
-	failureprobs = pmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
-	#info("done.")
+	failureprobs::Array{Array{Float64, 1}, 1} = pmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
 	maxfailureprobs = zeros(numhorizons)
 
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)
