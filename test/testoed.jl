@@ -2,7 +2,7 @@ module testoed
 import BIGUQ
 import Anasol
 import Distributions
-import R3Function
+import ReusableFunctions
 
 #@everywhere begin
 #function makebigoed1()
@@ -31,7 +31,7 @@ import R3Function
 		end
 		return result
 	end
-	r3innermodel = R3Function.maker3function(innermodel)
+	r3innermodel = ReusableFunctions.maker3function(innermodel)
 	function model(params::Vector, decisionparams::Vector, xs::Vector, ts::Vector)
 		#return r3innermodel([params[1:end]; decisionparams[1:end]; xs[1:end]; ts[1:end]])
 		return innermodel([params[1:end]; decisionparams[1:end]; xs[1:end]; ts[1:end]])
