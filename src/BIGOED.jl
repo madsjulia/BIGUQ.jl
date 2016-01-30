@@ -1,3 +1,4 @@
+"BigOED type"
 type BigOED
 	models::Array{Function, 1}#an array of functions that takes a vector of uncertain parameters, a vector of (certain) decision parameters, and two arrays: one of spatial coordinates, and another of times. It returns an array containing the results.
 	#the different models represent different things that could be measured at different times/locations
@@ -19,7 +20,7 @@ type BigOED
 	gethorizonoffailure::Function#a function that takes parameters, decision parameters, and returns the lowest horizon at which failure occurs
 end
 
-#makes the bigdts for each possible decision assuming that no more observations will be made
+"makes the bigdts for each possible decision assuming that no more observations will be made"
 function makebigdts(bigoed::BigOED)
 	function makeloglikelihood(likelihoodparams::Vector, decisionindex::Int64)
 		const constlikelihoodparams = copy(likelihoodparams)
@@ -46,7 +47,7 @@ function makebigdts(bigoed::BigOED)
 	return bigdts
 end
 
-#make bigdts for each possible decision assuming that the proposedobs are observed
+"make bigdts for each possible decision assuming that the proposedobs are observed"
 function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
 	function makeloglikelihood(likelihoodparams::Vector, decisionindex::Int64)
 		const constlikelihoodparams = copy(likelihoodparams)

@@ -19,6 +19,7 @@ type BigDT
 	end
 end
 
+"Get MCMC chain"
 function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=round(Int, 1e5), burnin=round(Int, 1e4), usederivatives=false)
 	conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
