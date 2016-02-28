@@ -1,11 +1,11 @@
 BIGUQ (Bayesian Information Gap Decision Theory for Uncertainty Quantification, Experimental Design and Decision Analysis)
 =======================================
 
-[![BIGUQ](http://pkg.julialang.org/badges/BIGUQ_0.4.svg)](http://pkg.julialang.org/?pkg=Mads&ver=0.4)
+[![BIGUQ](http://pkg.julialang.org/badges/BIGUQ_0.4.svg)](http://pkg.julialang.org/?pkg=BIGUQ&ver=0.4)
 
-[![Build Status](https://travis-ci.org/JuliaLang/BIGUQ.jl.svg?branch=master)](https://travis-ci.org/JuliaLang/Mads.jl)
+[![Build Status](https://travis-ci.org/madsjulia/BIGUQ.jl.svg?branch=master)](https://travis-ci.org/madsjulia/BIGUQ.jl)
 
-[![Coverage Status](https://coveralls.io/repos/JuliaLang/BIGUQ.jl/badge.svg?branch=master)](https://coveralls.io/r/JuliaLang/Mads.jl?branch=master)
+[![Coverage Status](https://coveralls.io/repos/madsjulia/BIGUQ.jl/badge.svg?branch=master)](https://coveralls.io/r/madsjulia/BIGUQ.jl?branch=master)
 
 BIGUQ is a module of MADS. MADS (Model Analysis & Decision Support) is an open-source [Julia](http://julialang.org) code designed as an integrated high-performance computational framework performing a wide range of model-based analyses:
 
