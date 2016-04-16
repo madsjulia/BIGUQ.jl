@@ -99,13 +99,13 @@ function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizati
 	mcmcparams = Lora.BasicContMuvParameter(:p, logtarget=loglikelihood)
 	mcmcmodel = Lora.likelihood_model(mcmcparams, false)
 	if Base.isbindingresolved(Lora, :RAM)
-		mcmcsampler = Lora.RAM(fill(1e-1, length(mcmcparams)), 0.3)
+		mcmcsampler = Lora.RAM(fill(1e-1, length(bigoed.nominalparams)), 0.3)
 	else
 		warn("Robust Adaptive Metropolis (RAM) method is not available")
-		mcmcsampler = Lora.MH(fill(1e-1, length(mcmcparams)))
+		mcmcsampler = Lora.MH(fill(1e-1, length(bigoed.nominalparams)))
 	end
 	mcmcrange = Lora.BasicMCRange(nsteps=thinning * numobsrealizations + burnin, burnin=burnin, thinning=thinning)
-	mcmcparams0 = Dict(:p=>initvals)
+	mcmcparams0 = Dict(:p=>bigoed.nominalparams)
 	outopts = Dict{Symbol, Any}(:monitor=>[:value, :logtarget, :loglikelihood], :diagnostics=>[:accept])
 	job = Lora.BasicMCJob(mcmcmodel, mcmcsampler, mcmcrange, mcmcparams0, outopts=outopts, tuner=Lora.VanillaMCTuner())
 	Lora.run(job)
