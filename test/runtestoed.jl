@@ -1,13 +1,13 @@
-#include("testoed.jl")
-import testoed
+include("testoed.jl")
+# import testoed
 import BlackBoxOptim
 #import ProfileView
 
-nummodelruns = 100000
+nummodelruns = 100
 hakunamatata = 1.
-numlikelihoods = 60
-numhorizons = 301
-numobsrealizations = 1000
+numlikelihoods = 10
+numhorizons = 10
+numobsrealizations = 10
 acceptableprobabilityoffailure = 0.1
 #paramsmin, paramsmax, bigoed = testoed.makebigoed1()
 @everywhere srand(0)

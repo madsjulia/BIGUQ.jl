@@ -95,10 +95,21 @@ function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizati
 		retval = Distributions.logpdf(residualdistribution, residuals)
 		return retval
 	end
-	mcmcmodel = Lora.model(loglikelihood, init=bigoed.nominalparams)
-	rmw = Lora.RAM(1e-1, 0.3)
-	smc = Lora.SerialMC(nsteps=thinning * numobsrealizations + burnin, burnin=burnin, thinning=thinning)
-	mcmcchain = Lora.run(mcmcmodel, rmw, smc)
+	#mcmcmodel = Lora.model(loglikelihood, init=bigoed.nominalparams)
+	mcmcparams = Lora.BasicContMuvParameter(:p, logtarget=loglikelihood)
+	mcmcmodel = Lora.likelihood_model(mcmcparams, false)
+	if Base.isbindingresolved(Lora, :RAM)
+		mcmcsampler = Lora.RAM(fill(1e-1, length(mcmcparams)), 0.3)
+	else
+		warn("Robust Adaptive Metropolis (RAM) method is not available")
+		mcmcsampler = Lora.MH(fill(1e-1, length(mcmcparams)))
+	end
+	mcmcrange = Lora.BasicMCRange(nsteps=thinning * numobsrealizations + burnin, burnin=burnin, thinning=thinning)
+	mcmcparams0 = Dict(:p=>initvals)
+	outopts = Dict{Symbol, Any}(:monitor=>[:value, :logtarget, :loglikelihood], :diagnostics=>[:accept])
+	job = Lora.BasicMCJob(mcmcmodel, mcmcsampler, mcmcrange, mcmcparams0, outopts=outopts, tuner=Lora.VanillaMCTuner())
+	Lora.run(job)
+	mcmcchain = Lora.output(job)
 	#use the mcmc samples to generate realizations of the proposed obs
 	proposedlocations = bigoed.proposedlocations[proposedindex]
 	proposedtimes = bigoed.proposedtimes[proposedindex]

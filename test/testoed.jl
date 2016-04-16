@@ -10,7 +10,7 @@ import ReusableFunctions
 	function innermodel(p::Vector)
 		local params = p[1:9]
 		local decisionparams = p[10:10]
-		local numxs = (length(p) - 10) / 2
+		local numxs = round(Int, (length(p) - 10) / 2)
 		local xs = p[11:10 + numxs]
 		local ts = p[11 + numxs:10 + 2 * numxs]
 		#x::Vector,tau,x01,sigma01,v1,sigma1,x02,sigma02,v2,sigma2
@@ -27,7 +27,9 @@ import ReusableFunctions
 		local const result = Array(Float64, length(xs))
 		for i = 1:length(xs)
 			#the background concentration is 5
-			result[i] = 5. + mass * exp(-lambda * max(0., ts[i] - 4.5)) * Anasol.bb_dd_ii(xs[i], ts[i], x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2)
+			result[i] = 5. + mass * exp(-lambda * max(0., ts[i] - 4.5)) * Anasol.long_bb_dd_ii(xs[i], ts[i], 
+				x01, sigma01, v1, sigma1, 0.5, 1,
+				x02, sigma02, v2, sigma2, 0.5, 1)
 		end
 		return result
 	end
