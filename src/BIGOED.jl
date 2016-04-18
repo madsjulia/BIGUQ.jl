@@ -98,12 +98,14 @@ function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizati
 	#mcmcmodel = Lora.model(loglikelihood, init=bigoed.nominalparams)
 	mcmcparams = Lora.BasicContMuvParameter(:p, logtarget=loglikelihood)
 	mcmcmodel = Lora.likelihood_model(mcmcparams, false)
+	#=
 	if Base.isbindingresolved(Lora, :RAM)
 		mcmcsampler = Lora.RAM(fill(1e-1, length(bigoed.nominalparams)), 0.3)
 	else
 		warn("Robust Adaptive Metropolis (RAM) method is not available")
+		=#
 		mcmcsampler = Lora.MH(fill(1e-1, length(bigoed.nominalparams)))
-	end
+	#end
 	mcmcrange = Lora.BasicMCRange(nsteps=thinning * numobsrealizations + burnin, burnin=burnin, thinning=thinning)
 	mcmcparams0 = Dict(:p=>bigoed.nominalparams)
 	outopts = Dict{Symbol, Any}(:monitor=>[:value, :logtarget, :loglikelihood], :diagnostics=>[:accept])
@@ -120,7 +122,7 @@ function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizati
 		proposedobsarray[i] = Array(Float64, length(proposedtimes))
 		for j = 1:length(bigoed.models)
 			goodindices = (proposedmodelindices .== j)
-			proposedobsarray[i][goodindices] = bigoed.models[j](vec(mcmcchain.samples[i, :]), bigoed.decisionparams[1], proposedlocations[goodindices], proposedtimes[goodindices])
+			proposedobsarray[i][goodindices] = bigoed.models[j](vec(mcmcchain.value[:, i]), bigoed.decisionparams[1], proposedlocations[goodindices], proposedtimes[goodindices])
 		end
 		#TODO maybe make the residual conditioned on the residuals between the model and the existing observations
 		residual = rand(proposedobsresidualdistribution)

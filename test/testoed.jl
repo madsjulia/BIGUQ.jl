@@ -33,7 +33,7 @@ import ReusableFunctions
 		end
 		return result
 	end
-	r3innermodel = ReusableFunctions.maker3function(innermodel)
+	#r3innermodel = ReusableFunctions.maker3function(innermodel)
 	function model(params::Vector, decisionparams::Vector, xs::Vector, ts::Vector)
 		#return r3innermodel([params[1:end]; decisionparams[1:end]; xs[1:end]; ts[1:end]])
 		return innermodel([params[1:end]; decisionparams[1:end]; xs[1:end]; ts[1:end]])
