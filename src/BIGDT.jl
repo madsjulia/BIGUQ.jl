@@ -188,7 +188,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
-	failureprobs::Array{Array{Float64, 1}, 1} = pmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
+	failureprobs::Array{Array{Float64, 1}, 1} = RobustPmap.rpmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
 	maxfailureprobs = zeros(numhorizons)
 
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)

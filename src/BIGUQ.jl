@@ -36,6 +36,7 @@ import Lora
 import ForwardDiff
 import BlackBoxOptim
 import Distributions
+import RobustPmap
 
 include("BIGDT.jl")
 include("BIGOED.jl")
