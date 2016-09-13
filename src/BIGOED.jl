@@ -20,7 +20,7 @@ type BigOED
 	gethorizonoffailure::Function#a function that takes parameters, decision parameters, and returns the lowest horizon at which failure occurs
 end
 
-"makes the bigdts for each possible decision assuming that no more observations will be made"
+"Makes BIGDT analyses for each possible decision assuming that no more observations will be made"
 function makebigdts(bigoed::BigOED)
 	function makeloglikelihood(likelihoodparams::Vector, decisionindex::Int64)
 		const constlikelihoodparams = copy(likelihoodparams)
@@ -47,7 +47,7 @@ function makebigdts(bigoed::BigOED)
 	return bigdts
 end
 
-"make bigdts for each possible decision assuming that the proposedobs are observed"
+"Make BIGDT analyses for each possible decision assuming that the proposed observations `proposedobs` are observed"
 function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
 	function makeloglikelihood(likelihoodparams::Vector, decisionindex::Int64)
 		const constlikelihoodparams = copy(likelihoodparams)
@@ -95,23 +95,23 @@ function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizati
 		retval = Distributions.logpdf(residualdistribution, residuals)
 		return retval
 	end
-	#mcmcmodel = Lora.model(loglikelihood, init=bigoed.nominalparams)
-	mcmcparams = Lora.BasicContMuvParameter(:p, logtarget=loglikelihood)
-	mcmcmodel = Lora.likelihood_model(mcmcparams, false)
+	#mcmcmodel = Klara.model(loglikelihood, init=bigoed.nominalparams)
+	mcmcparams = Klara.BasicContMuvParameter(:p, logtarget=loglikelihood)
+	mcmcmodel = Klara.likelihood_model(mcmcparams, false)
 	#=
-	if Base.isbindingresolved(Lora, :RAM)
-		mcmcsampler = Lora.RAM(fill(1e-1, length(bigoed.nominalparams)), 0.3)
+	if Base.isbindingresolved(Klara, :RAM)
+		mcmcsampler = Klara.RAM(fill(1e-1, length(bigoed.nominalparams)), 0.3)
 	else
 		warn("Robust Adaptive Metropolis (RAM) method is not available")
 		=#
-		mcmcsampler = Lora.MH(fill(1e-1, length(bigoed.nominalparams)))
+		mcmcsampler = Klara.MH(fill(1e-1, length(bigoed.nominalparams)))
 	#end
-	mcmcrange = Lora.BasicMCRange(nsteps=thinning * numobsrealizations + burnin, burnin=burnin, thinning=thinning)
+	mcmcrange = Klara.BasicMCRange(nsteps=thinning * numobsrealizations + burnin, burnin=burnin, thinning=thinning)
 	mcmcparams0 = Dict(:p=>bigoed.nominalparams)
 	outopts = Dict{Symbol, Any}(:monitor=>[:value, :logtarget, :loglikelihood], :diagnostics=>[:accept])
-	job = Lora.BasicMCJob(mcmcmodel, mcmcsampler, mcmcrange, mcmcparams0, outopts=outopts, tuner=Lora.VanillaMCTuner())
-	Lora.run(job)
-	mcmcchain = Lora.output(job)
+	job = Klara.BasicMCJob(mcmcmodel, mcmcsampler, mcmcrange, mcmcparams0, outopts=outopts, tuner=Klara.VanillaMCTuner())
+	Klara.run(job)
+	mcmcchain = Klara.output(job)
 	#use the mcmc samples to generate realizations of the proposed obs
 	proposedlocations = bigoed.proposedlocations[proposedindex]
 	proposedtimes = bigoed.proposedtimes[proposedindex]

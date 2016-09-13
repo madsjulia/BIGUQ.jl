@@ -32,19 +32,19 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=round(Int, 1e5), bur
 	end
 	if usederivatives
 		loglikelihoodgrad = ForwardDiff.forwarddiff_gradient(loglikelihood, Float64, fadtype=:dual)
-		mcmcmodel = Lora.model(loglikelihood, grad=loglikelihoodgrad, init=bigdt.nominalparams)
-		rmw = Lora.HMC(3, 1e-2)
+		mcmcmodel = Klara.model(loglikelihood, grad=loglikelihoodgrad, init=bigdt.nominalparams)
+		rmw = Klara.HMC(3, 1e-2)
 	else
-		mcmcmodel = Lora.model(loglikelihood, init=bigdt.nominalparams)
-		#rmw = Lora.RWM(1e-2)
-		rmw = Lora.RAM(1e-1, 0.3)
+		mcmcmodel = Klara.model(loglikelihood, init=bigdt.nominalparams)
+		#rmw = Klara.RWM(1e-2)
+		rmw = Klara.RAM(1e-1, 0.3)
 	end
-	smc = Lora.SerialMC(nsteps=steps, burnin=burnin, thinning=10)
-	mcmcchain = Lora.run(mcmcmodel, rmw, smc)
+	smc = Klara.SerialMC(nsteps=steps, burnin=burnin, thinning=10)
+	mcmcchain = Klara.run(mcmcmodel, rmw, smc)
 	#=
-	Lora.describe(mcmcchain)
+	Klara.describe(mcmcchain)
 	println(mcmcchain)
-	ess = Lora.ess(mcmcchain)
+	ess = Klara.ess(mcmcchain)
 	if minimum(ess) < 10
 		warn(string("Low effective sample size, ", ess, ", with likelihood params ", likelihoodparams))
 	end
