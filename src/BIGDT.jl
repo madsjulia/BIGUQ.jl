@@ -20,7 +20,7 @@ type BigDT
 end
 
 "Get MCMC chain"
-function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=round(Int, 1e5), burnin=round(Int, 1e4), usederivatives=false)
+function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=10 ^ 2, burnin=10, numwalkers=10 ^ 2)
 	conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = bigdt.logprior(params)
@@ -30,26 +30,9 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=round(Int, 1e5), bur
 			return l1 + conditionalloglikelihood(params)
 		end
 	end
-	if usederivatives
-		loglikelihoodgrad = ForwardDiff.forwarddiff_gradient(loglikelihood, Float64, fadtype=:dual)
-		mcmcmodel = Klara.model(loglikelihood, grad=loglikelihoodgrad, init=bigdt.nominalparams)
-		rmw = Klara.HMC(3, 1e-2)
-	else
-		mcmcmodel = Klara.model(loglikelihood, init=bigdt.nominalparams)
-		#rmw = Klara.RWM(1e-2)
-		rmw = Klara.RAM(1e-1, 0.3)
-	end
-	smc = Klara.SerialMC(nsteps=steps, burnin=burnin, thinning=10)
-	mcmcchain = Klara.run(mcmcmodel, rmw, smc)
-	#=
-	Klara.describe(mcmcchain)
-	println(mcmcchain)
-	ess = Klara.ess(mcmcchain)
-	if minimum(ess) < 10
-		warn(string("Low effective sample size, ", ess, ", with likelihood params ", likelihoodparams))
-	end
-	=#
-	return mcmcchain
+	burninchain, burninllhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), burnin, 1)
+	chain, llhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), steps, 1)
+	return Mads.flattenmcmcarray(chain, llhoodvals)[1]
 end
 
 function get_min_index_of_horizon_with_failure(bigdt::BigDT, sample::Vector, horizons::Vector) # called in getfailureprobabilities
@@ -97,14 +80,14 @@ end
 function getfailureprobabilities(bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
 	mcmcchain = getmcmcchain(bigdt, likelihoodparams)
 	failures = zeros(Int64, length(horizons))
-	for i = 1:size(mcmcchain.samples, 1)
-		sample = vec(mcmcchain.samples[i, :])
+	for i = 1:size(mcmcchain, 2)
+		sample = mcmcchain[:, i]
 		minindex = get_min_index_of_horizon_with_failure(bigdt, sample, horizons)
 		for j = minindex:length(failures)
 			failures[j] += 1
 		end
 	end
-	return failures / size(mcmcchain.samples, 1)
+	return failures / size(mcmcchain, 2)
 end
 
 #! Make getfailureprobablities function using Latin Hypercube Sampling
@@ -166,7 +149,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	if length(likelihoodparams) == 0
 		minlikelihoodparams = bigdt.likelihoodparamsmin(hakunamatata)
 		maxlikelihoodparams = bigdt.likelihoodparamsmax(hakunamatata)
-		likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(minlikelihoodparams, maxlikelihoodparams, numlikelihoods)
+		likelihoodparams = BlackBoxOptim.Utils.latin_hypercube_sampling(map(Float64, minlikelihoodparams), map(Float64, maxlikelihoodparams), numlikelihoods)
 	end
 	horizons = collect(linspace(0, hakunamatata, numhorizons))
 
@@ -175,7 +158,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	for i = 1:numlikelihoods
 		k = 1
 		while k <= numhorizons
-			if inbox(likelihoodparams[i], bigdt.likelihoodparamsmin(horizons[k]), bigdt.likelihoodparamsmax(horizons[k]))
+			if inbox(likelihoodparams[:, i], bigdt.likelihoodparamsmin(horizons[k]), bigdt.likelihoodparamsmax(horizons[k]))
 				likelihoodhorizonindices[i] = k;
 				break;
 			end
@@ -188,7 +171,8 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
-	failureprobs::Array{Array{Float64, 1}, 1} = RobustPmap.rpmap(p -> getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
+	#failureprobs = RobustPmap.rpmap(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs; t=Array{Float64, 1})
+	failureprobs = map(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
 	maxfailureprobs = zeros(numhorizons)
 
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)

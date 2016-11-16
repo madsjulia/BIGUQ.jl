@@ -59,6 +59,7 @@ function getbiguq2()
 end
 
 function test(biguq::BIGUQ.BigDT)
+	println("test mcmc")
 	numhorizons = 10
 	@time maxfailureprobs, horizons, badlikelihoodparams = BIGUQ.getrobustnesscurve(biguq, 10, 10; numhorizons=numhorizons)
 	for i = 1:numhorizons
@@ -68,6 +69,7 @@ function test(biguq::BIGUQ.BigDT)
 end
 
 function testmc(biguq::BIGUQ.BigDT, modelparamsmin::Vector, modelparamsmax::Vector)
+	println("test mc")
 	numhorizons = 10
 	modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(modelparamsmin, modelparamsmax, 10000)
 	getfailureprobs = BIGUQ.makegetfailureprobabilities_mc(modelparams)
