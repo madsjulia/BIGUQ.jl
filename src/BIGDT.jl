@@ -32,7 +32,7 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=10 ^ 2, burnin=10, n
 	end
 	burninchain, burninllhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), burnin, 1)
 	chain, llhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), steps, 1)
-	return Mads.flattenmcmcarray(chain, llhoodvals)[1]
+	return Mads.flattenmcmcarray(chain, llhoodvals)
 end
 
 function get_min_index_of_horizon_with_failure(bigdt::BigDT, sample::Vector, horizons::Vector) # called in getfailureprobabilities
@@ -78,7 +78,7 @@ end
 
 #! Get failure probablities using Markov Chain Monte Carlo
 function getfailureprobabilities(bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) # called in getrobustnesscurve
-	mcmcchain = getmcmcchain(bigdt, likelihoodparams)
+	mcmcchain, _ = getmcmcchain(bigdt, likelihoodparams)
 	failures = zeros(Int64, length(horizons))
 	for i = 1:size(mcmcchain, 2)
 		sample = mcmcchain[:, i]
@@ -91,11 +91,11 @@ function getfailureprobabilities(bigdt::BigDT, horizons::Vector, likelihoodparam
 end
 
 #! Make getfailureprobablities function using Latin Hypercube Sampling
-function makegetfailureprobabilities_mc(modelparams::Matrix)
-	const nummodelparams = size(modelparams, 2);
+function makegetfailureprobabilities_mc(modelparams::Matrix, origloglikelihoods=zeros(size(modelparams, 2)))
+	const nummodelparams = size(modelparams, 2)
 
 	return (bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) -> begin
-		const conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams);
+		const conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 		function loglikelihood(params)
 			l1 = bigdt.logprior(params)
 			if l1 == -Inf
@@ -105,22 +105,21 @@ function makegetfailureprobabilities_mc(modelparams::Matrix)
 			end
 		end
 
-		sumweights = 0.;
-		failures = zeros(Float64, length(horizons));
+		sumweights = 0.
+		failures = zeros(Float64, length(horizons))
 		loglikelihoods = Array(Float64, nummodelparams)
 		weights = Array(Float64, nummodelparams)
 		for i = 1:nummodelparams
-			params_i = modelparams[:,i];
-			loglikelihoods[i] = loglikelihood(params_i);
+			params_i = modelparams[:,i]
+			loglikelihoods[i] = loglikelihood(params_i) - origloglikelihoods[i]
 		end
 		maxloglikelihood = maximum(loglikelihoods)
 		for i = 1:nummodelparams
-			# params_i = view(modelparams, :, i); NOTE: views with by more efficient and reduce GC
-			params_i = modelparams[:,i];
+			params_i = modelparams[:, i]
 			weights[i] = exp(loglikelihoods[i] - maxloglikelihood)
 			wij = exp(loglikelihoods[i] - maxloglikelihood)
-			sumweights += wij;
-			minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons);
+			sumweights += wij
+			minindex = get_min_index_of_horizon_with_failure(bigdt, params_i, horizons)
 			for j = minindex:length(failures)
 				failures[j] += wij
 			end
