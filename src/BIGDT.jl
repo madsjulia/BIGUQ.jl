@@ -20,7 +20,8 @@ type BigDT
 end
 
 "Get MCMC chain"
-function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=10 ^ 2, burnin=10, numwalkers=10 ^ 2)
+#function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=10 ^ 2, burnin=10, numwalkers=10 ^ 2)
+function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=3, burnin=2, numwalkers=8)
 	conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = bigdt.logprior(params)

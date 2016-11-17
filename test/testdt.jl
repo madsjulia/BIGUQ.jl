@@ -1,6 +1,8 @@
 import BIGUQ
 import BlackBoxOptim
 
+srand(0)
+
 function getbiguq1()
 	function model(params)
 		k = params[1]
