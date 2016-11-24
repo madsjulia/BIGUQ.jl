@@ -135,10 +135,6 @@ function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numho
 	return dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, makegetfailureprobabilities_mc(modelparams))
 end
 
-function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numhorizons::Int, numobsrealizations::Int, acceptableprobabilityoffailure::Real)
-	return dobigoed(bigoed, hakunamatata, numlikelihoods, numhorizons, numobsrealizations, acceptableprobabilityoffailure, getfailureprobabilities)
-end
-
 function makedecisionforproposedobs(proposedobsarray, i, bigoed, numhorizons, getfailureprobfnct)
 	local bigdts = makebigdts(bigoed, i, proposedobsarray)
 	local maxfailureprobsarray = Array(Array{Float64, 1}, length(bigdts))
