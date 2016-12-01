@@ -37,7 +37,7 @@ import ForwardDiff
 import BlackBoxOptim
 import Distributions
 import RobustPmap
-import Emcee
+import AffineInvariantMCMC
 
 include("BIGDT.jl")
 include("BIGOED.jl")
