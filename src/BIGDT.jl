@@ -1,5 +1,5 @@
 # @everywhere using ArrayViews
-
+"BigOED type"
 type BigDT
 	makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
 	logprior::Function # the function encoding our prior beliefs
