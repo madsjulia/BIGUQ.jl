@@ -2,10 +2,10 @@
 
 """
 MADS: Model Analysis & Decision Support in Julia (Mads.jl v1.0) 2016
+module BIGUQ
 
-http://mads.lanl.gov
-http://madsjulia.lanl.gov
-http://gitlab.com/mads/Mads.jl
+https://mads.lanl.gov
+https://github.com/madsjulia
 
 Licensing: GPLv3: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -37,7 +37,7 @@ import ForwardDiff
 import BlackBoxOptim
 import Distributions
 import RobustPmap
-import Mads
+import AffineInvariantMCMC
 
 include("BIGDT.jl")
 include("BIGOED.jl")

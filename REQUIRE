@@ -1,8 +1,8 @@
 julia 0.4
-DataFrames
+RobustPmap
+AffineInvariantMCMC
 Klara 0.6
+DataFrames
 ForwardDiff
 BlackBoxOptim
 Distributions
-RobustPmap
-Mads

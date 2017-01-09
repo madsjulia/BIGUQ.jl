@@ -3,11 +3,15 @@ BIGUQ (Bayesian Information Gap Decision Theory for Uncertainty Quantification, 
 
 [![BIGUQ](http://pkg.julialang.org/badges/BIGUQ_0.4.svg)](http://pkg.julialang.org/?pkg=BIGUQ&ver=0.4)
 
+[![BIGUQ](http://pkg.julialang.org/badges/BIGUQ_0.5.svg)](http://pkg.julialang.org/?pkg=BIGUQ&ver=0.5)
+
 [![Build Status](https://travis-ci.org/madsjulia/BIGUQ.jl.svg?branch=master)](https://travis-ci.org/madsjulia/BIGUQ.jl)
 
 [![Coverage Status](https://coveralls.io/repos/madsjulia/BIGUQ.jl/badge.svg?branch=master)](https://coveralls.io/r/madsjulia/BIGUQ.jl?branch=master)
 
-BIGUQ is a module of MADS. MADS (Model Analysis & Decision Support) is an open-source [Julia](http://julialang.org) code designed as an integrated high-performance computational framework performing a wide range of model-based analyses:
+BIGUQ is a module of MADS.
+
+MADS (Model Analysis & Decision Support) is an open-source [Julia](http://julialang.org) code designed as an integrated high-performance computational framework performing a wide range of model-based analyses:
 
 * Sensitivity Analysis
 * Parameter Estimation
@@ -30,7 +34,7 @@ Installation
 After starting Julia, execute:
 
 ```
-Pkg.add("Anasol")
+Pkg.add("BIGUQ")
 ```
 
 Installation behind a firewall

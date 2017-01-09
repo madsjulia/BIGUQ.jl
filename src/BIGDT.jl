@@ -1,5 +1,5 @@
 # @everywhere using ArrayViews
-
+"BigOED type"
 type BigDT
 	makeloglikelihood::Function # we give it a set of likelihood parameters, and it gives us a conditional likelihood function. That is, it gives us a function of the parameters that returns the likelihood of the data given the parameters
 	logprior::Function # the function encoding our prior beliefs
@@ -30,9 +30,9 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=10 ^ 2, burnin=10, n
 			return l1 + conditionalloglikelihood(params)
 		end
 	end
-	burninchain, burninllhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), burnin, 1)
-	chain, llhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), steps, thinning)
-	return Mads.flattenmcmcarray(chain, llhoodvals)
+	burninchain, burninllhoodvals = AffineInvariantMCMC.sample(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), burnin, 1)
+	chain, llhoodvals = AffineInvariantMCMC.sample(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), steps, 1)
+	return AffineInvariantMCMC.flattenmcmcarray(chain, llhoodvals)
 end
 
 function get_min_index_of_horizon_with_failure(bigdt::BigDT, sample::Vector, horizons::Vector) # called in getfailureprobabilities
