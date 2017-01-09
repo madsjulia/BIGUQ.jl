@@ -20,8 +20,7 @@ type BigDT
 end
 
 "Get MCMC chain"
-#function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=10 ^ 2, burnin=10, numwalkers=10 ^ 2)
-function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=3, burnin=2, numwalkers=8)
+function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=10 ^ 2, burnin=10, numwalkers=10 ^ 2, thinning=1)
 	conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 	function loglikelihood(params)
 		l1 = bigdt.logprior(params)
@@ -32,7 +31,7 @@ function getmcmcchain(bigdt::BigDT, likelihoodparams; steps=3, burnin=2, numwalk
 		end
 	end
 	burninchain, burninllhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), burnin, 1)
-	chain, llhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), steps, 1)
+	chain, llhoodvals = Mads.emcee(loglikelihood, numwalkers, broadcast(+, bigdt.nominalparams, 1e-6 * randn(length(bigdt.nominalparams), numwalkers)), steps, thinning)
 	return Mads.flattenmcmcarray(chain, llhoodvals)
 end
 
@@ -171,8 +170,9 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	likelihoodhorizonindices = [1; likelihoodhorizonindices]
 	numlikelihoods += 1
 	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
-	#failureprobs = RobustPmap.rpmap(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs; t=Array{Float64, 1})
-	failureprobs = map(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
+	failureprobs = RobustPmap.rpmap(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs; t=Array{Float64, 1})
+	#failureprobs = map(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
+	#warn("failureprobs is not pmapped")
 	maxfailureprobs = zeros(numhorizons)
 
 	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)
