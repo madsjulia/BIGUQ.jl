@@ -107,8 +107,8 @@ function makegetfailureprobabilities_mc(modelparams::Matrix, origloglikelihoods=
 
 		sumweights = 0.
 		failures = zeros(Float64, length(horizons))
-		loglikelihoods = Array(Float64, nummodelparams)
-		weights = Array(Float64, nummodelparams)
+		loglikelihoods = Array{Float64}(nummodelparams)
+		weights = Array{Float64}(nummodelparams)
 		for i = 1:nummodelparams
 			params_i = modelparams[:,i]
 			loglikelihoods[i] = loglikelihood(params_i) - origloglikelihoods[i]
@@ -175,7 +175,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	#warn("failureprobs is not pmapped")
 	maxfailureprobs = zeros(numhorizons)
 
-	badlikelihoodparams = Array(Array{Float64, 1}, numhorizons)
+	badlikelihoodparams = Array{Array{Float64, 1}}(numhorizons)
 	for i = 1:numhorizons
 		badlikelihoodparams[i] = bigdt.likelihoodparamsmin(0.)[1:end]
 	end
@@ -216,8 +216,8 @@ function getrobustness(maxfailureprobs, horizons, acceptableprobabilityoffailure
 end
 
 function makedecision(bigdts::Array{BigDT, 1}, acceptableprobabilityoffailure, hakunamatata, numlikelihoods, numhorizons; robustnesspenalty=zeros(length(bigdts)))
-	maxfailureprobsarray = Array(Array{Float64, 1}, length(bigdts))
-	horizonsarray = Array(Array{Float64, 1}, length(bigdts))
+	maxfailureprobsarray = Array{Array{Float64, 1}}(length(bigdts))
+	horizonsarray = Array{Array{Float64, 1}}(length(bigdts))
 	for i = 1:length(bigdts)
 		maxfailureprobsarray[i], horizonsarray[i], throwaway = getrobustnesscurve(bigdts[i], hakunamatata, numlikelihoods; numhorizons=numhorizons)
 	end
