@@ -92,10 +92,10 @@ end
 
 #! Make getfailureprobablities function using Latin Hypercube Sampling
 function makegetfailureprobabilities_mc(modelparams::Matrix, origloglikelihoods=zeros(size(modelparams, 2)))
-	const nummodelparams = size(modelparams, 2)
+	nummodelparams = size(modelparams, 2)
 
 	return (bigdt::BigDT, horizons::Vector, likelihoodparams::Vector) -> begin
-		const conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
+		conditionalloglikelihood = bigdt.makeloglikelihood(likelihoodparams)
 		function loglikelihood(params)
 			l1 = bigdt.logprior(params)
 			if l1 == -Inf

@@ -14,17 +14,17 @@ import ReusableFunctions
 		local xs = p[11:10 + numxs]
 		local ts = p[11 + numxs:10 + 2 * numxs]
 		#x::Vector,tau,x01,sigma01,v1,sigma1,x02,sigma02,v2,sigma2
-		local const x01 = params[1]
-		local const sigma01 = params[2]
-		local const v1 = params[3]
-		local const sigma1 = params[4]
-		local const x02 = params[5]
-		local const sigma02 = params[6]
-		local const v2 = params[7]
-		local const sigma2 = params[8]
-		local const mass = params[9]
-		local const lambda = decisionparams[1]
-		local const result = Array{Float64}(length(xs))
+		local x01 = params[1]
+		local sigma01 = params[2]
+		local v1 = params[3]
+		local sigma1 = params[4]
+		local x02 = params[5]
+		local sigma02 = params[6]
+		local v2 = params[7]
+		local sigma2 = params[8]
+		local mass = params[9]
+		local lambda = decisionparams[1]
+		local result = Array{Float64}(length(xs))
 		for i = 1:length(xs)
 			#the background concentration is 5
 			result[i] = 5. + mass * exp(-lambda * max(0., ts[i] - 4.5)) * Anasol.long_bb_dd_ii(xs[i], ts[i],
@@ -39,20 +39,20 @@ import ReusableFunctions
 		return innermodel([params[1:end]; decisionparams[1:end]; xs[1:end]; ts[1:end]])
 	end
 	#set up the "truth"
-	const x01 = 0.
-	const sigma01 = 1e-3
-	const v1 = 1e-1
-	const sigma1 = sqrt(1e-1)
-	const x02 = 0.
-	const sigma02 = 1e-3
-	const v2 = 1e-2
-	const sigma2 = sqrt(1e-2)
-	const mass = 1e2
-	const params = [x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2, mass]
-	#const f = makemodel(params)
+	x01 = 0.
+	sigma01 = 1e-3
+	v1 = 1e-1
+	sigma1 = sqrt(1e-1)
+	x02 = 0.
+	sigma02 = 1e-3
+	v2 = 1e-2
+	sigma2 = sqrt(1e-2)
+	mass = 1e2
+	params = [x01, sigma01, v1, sigma1, x02, sigma02, v2, sigma2, mass]
+	#f = makemodel(params)
 	#these are the times and places where we have already collected data
-	const ts = [0.,1.,2.,0.,1.,2.,0.,1.,2.]
-	const xs = Array{Array{Float64, 1}}(9)
+	ts = [0.,1.,2.,0.,1.,2.,0.,1.,2.]
+	xs = Array{Array{Float64, 1}}(9)
 	xs[1] = [0., -.1]
 	xs[2] = [0., -.1]
 	xs[3] = [0., -.1]
@@ -62,10 +62,10 @@ import ReusableFunctions
 	xs[7] = [-.1, 0.]
 	xs[8] = [-.1, 0.]
 	xs[9] = [-.1, 0.]
-	const noiselevel = 25.
+	noiselevel = 25.
 	data = model(params, [0.], xs, ts)
 	data += noiselevel * randn(length(data))
-	const proposedlocations = Array{Array{Array{Float64, 1}, 1}}(5)
+	proposedlocations = Array{Array{Array{Float64, 1}, 1}}(5)
 	proposedlocations[1] = Array{Array{Float64, 1}}(4)
 	proposedlocations[1][1:3] = xs[1:3:7]
 	proposedlocations[1][4] = [.25, 0.]
@@ -81,13 +81,13 @@ import ReusableFunctions
 	proposedlocations[5] = Array{Array{Float64, 1}}(4)
 	proposedlocations[5][1:3] = xs[1:3:7]
 	proposedlocations[5][4] = [.375, 0.]
-	const proposedtimes = Array{Array{Float64, 1}}(5)
+	proposedtimes = Array{Array{Float64, 1}}(5)
 	proposedtimes[1] = [3., 3., 3., 3.]
 	proposedtimes[2] = [3., 3., 3., 3.]
 	proposedtimes[3] = [3., 3., 3., 3.]
 	proposedtimes[4] = [3., 3., 3., 3.]
 	proposedtimes[5] = [3., 3., 3., 3.]
-	const proposedmodelindices = Array{Array{Int64, 1}}(5)
+	proposedmodelindices = Array{Array{Int64, 1}}(5)
 	proposedmodelindices[1] = ones(Int, length(proposedlocations[1]))
 	proposedmodelindices[2] = ones(Int, length(proposedlocations[2]))
 	proposedmodelindices[3] = ones(Int, length(proposedlocations[3]))
@@ -105,8 +105,8 @@ import ReusableFunctions
 		local sigma = geostatparams[1]
 		local alpha = geostatparams[2]
 		local k = geostatparams[3]
-		const alllocations = [datalocations; proposedlocations]
-		const alltimes = [datatimes; proposedtimes]
+		alllocations = [datalocations; proposedlocations]
+		alltimes = [datatimes; proposedtimes]
 		local covmat = Array{Float64}((length(alllocations), length(alllocations)))
 		for i = 1:length(alllocations)
 			covmat[i, i] = rationalquadraticcovariance(0., sigma, alpha, k)
@@ -130,18 +130,18 @@ import ReusableFunctions
 		local k = .1 * (1 + horizonofuncertainty)#k is like a length scale
 		return [sigma, alpha, k]
 	end
-	const nominalparams = params + sqrt(params) .* randn(length(params)) / 100
-	const ncompliancepoints = 10
-	const ncompliancetimes = 10
-	const compliancepoints = Array{Array{Float64, 1}}(ncompliancepoints * ncompliancetimes)
-	const compliancetimes = Array{Float64}(ncompliancepoints * ncompliancetimes)
+	nominalparams = params + sqrt(params) .* randn(length(params)) / 100
+	ncompliancepoints = 10
+	ncompliancetimes = 10
+	compliancepoints = Array{Array{Float64, 1}}(ncompliancepoints * ncompliancetimes)
+	compliancetimes = Array{Float64}(ncompliancepoints * ncompliancetimes)
 	for i = 1:ncompliancetimes
 		for j = 1:ncompliancepoints
 			compliancepoints[(i - 1) * ncompliancepoints + j] = [.5, (j - .5 * ncompliancepoints) / ncompliancepoints]
 			compliancetimes[(i - 1) * ncompliancepoints + j] = 4. + i
 		end
 	end
-	const compliancethreshold = 155.
+	compliancethreshold = 155.
 	function performancegoalsatisfied(params::Vector, decisionparams::Vector, horizon::Number)
 		results = model(params, decisionparams, compliancepoints, compliancetimes)
 		results *= (1 + horizon)
@@ -154,27 +154,27 @@ import ReusableFunctions
 		return minimum(horizonsoffailure)
 	end
 	#=
-	const x01bounds = [-1., 1.]
-	const sigma01bounds = [1e-6, 1e-1]
-	const v1bounds = [1e-2, 5e-1]
-	const sigma1bounds = [sqrt(1e-2), sqrt(1e0)]
-	const x02bounds = [-1., 1.]
-	const sigma02bounds = [1e-6, 1e-1]
-	const v2bounds = [-5e-1, 5e-1]
-	const sigma2bounds = [sqrt(1e-4), sqrt(1e0)]
-	const massbounds = [1e1, 3e2]
+	x01bounds = [-1., 1.]
+	sigma01bounds = [1e-6, 1e-1]
+	v1bounds = [1e-2, 5e-1]
+	sigma1bounds = [sqrt(1e-2), sqrt(1e0)]
+	x02bounds = [-1., 1.]
+	sigma02bounds = [1e-6, 1e-1]
+	v2bounds = [-5e-1, 5e-1]
+	sigma2bounds = [sqrt(1e-4), sqrt(1e0)]
+	massbounds = [1e1, 3e2]
 	=#
-	const x01bounds = [-.05, .05]
-	const sigma01bounds = [7.5e-4, 1.5e-3]
-	const v1bounds = [7.5e-2, 1.5e-1]
-	const sigma1bounds = [sqrt(7.5e-2), sqrt(1.5e-1)]
-	const x02bounds = [-.05, .05]
-	const sigma02bounds = [7.5e-4, 1.5e-3]
-	const v2bounds = [-2e-2, 2e-2]
-	const sigma2bounds = [sqrt(7.5e-3), sqrt(1.5e-2)]
-	const massbounds = [7.5e1, 1.5e2]
-	const paramsmin = [x01bounds[1], sigma01bounds[1], v1bounds[1], sigma1bounds[1], x02bounds[1], sigma02bounds[1], v2bounds[1], sigma2bounds[1], massbounds[1]]
-	const paramsmax = [x01bounds[2], sigma01bounds[2], v1bounds[2], sigma1bounds[2], x02bounds[2], sigma02bounds[2], v2bounds[2], sigma2bounds[2], massbounds[2]]
+	x01bounds = [-.05, .05]
+	sigma01bounds = [7.5e-4, 1.5e-3]
+	v1bounds = [7.5e-2, 1.5e-1]
+	sigma1bounds = [sqrt(7.5e-2), sqrt(1.5e-1)]
+	x02bounds = [-.05, .05]
+	sigma02bounds = [7.5e-4, 1.5e-3]
+	v2bounds = [-2e-2, 2e-2]
+	sigma2bounds = [sqrt(7.5e-3), sqrt(1.5e-2)]
+	massbounds = [7.5e1, 1.5e2]
+	paramsmin = [x01bounds[1], sigma01bounds[1], v1bounds[1], sigma1bounds[1], x02bounds[1], sigma02bounds[1], v2bounds[1], sigma2bounds[1], massbounds[1]]
+	paramsmax = [x01bounds[2], sigma01bounds[2], v1bounds[2], sigma1bounds[2], x02bounds[2], sigma02bounds[2], v2bounds[2], sigma2bounds[2], massbounds[2]]
 	function logprior(params::Vector)
 		if any(params .< paramsmin) || any(params .> paramsmax)
 			return -Inf

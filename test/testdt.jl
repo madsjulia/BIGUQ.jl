@@ -38,7 +38,7 @@ function getbiguq2()
 	function model(params::Vector)
 		return params[1]
 	end
-	const data = 1 + .1 * randn(5)
+	data = 1 + .1 * randn(5)
 	function makeloglikelihood(likelihoodparams::Vector)
 		logvar = likelihoodparams[1]
 		var = exp(logvar)

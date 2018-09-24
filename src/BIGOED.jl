@@ -23,11 +23,11 @@ end
 "Makes BIGDT analyses for each possible decision assuming that no more observations will be made"
 function makebigdts(bigoed::BigOED)
 	function makeloglikelihood(likelihoodparams::Vector, decisionindex::Int64)
-		const constlikelihoodparams = copy(likelihoodparams)
-		const proposedlocations = []
-		const proposedtimes = []
-		const proposedmodelindices = []
-		const residualdistribution = bigoed.makeresidualdistribution(constlikelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, proposedlocations, proposedtimes, proposedmodelindices)
+		constlikelihoodparams = copy(likelihoodparams)
+		proposedlocations = []
+		proposedtimes = []
+		proposedmodelindices = []
+		residualdistribution = bigoed.makeresidualdistribution(constlikelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, proposedlocations, proposedtimes, proposedmodelindices)
 		function loglikelihood(params::Vector)
 			results = Array{Float64}(length(bigoed.obs))
 			for i = 1:length(bigoed.models)
@@ -50,11 +50,11 @@ end
 "Make BIGDT analyses for each possible decision assuming that the proposed observations `proposedobs` are observed"
 function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
 	function makeloglikelihood(likelihoodparams::Vector, decisionindex::Int64)
-		const constlikelihoodparams = copy(likelihoodparams)
-		const proposedlocations = bigoed.proposedlocations[proposedindex]
-		const proposedtimes = bigoed.proposedtimes[proposedindex]
-		const proposedmodelindices = bigoed.proposedmodelindices[proposedindex]
-		const residualdistribution = bigoed.makeresidualdistribution(constlikelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, proposedlocations, proposedtimes, proposedmodelindices)
+		constlikelihoodparams = copy(likelihoodparams)
+		proposedlocations = bigoed.proposedlocations[proposedindex]
+		proposedtimes = bigoed.proposedtimes[proposedindex]
+		proposedmodelindices = bigoed.proposedmodelindices[proposedindex]
+		residualdistribution = bigoed.makeresidualdistribution(constlikelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, proposedlocations, proposedtimes, proposedmodelindices)
 		function loglikelihood(params::Vector)
 			results = Array{Float64}(length(bigoed.obs) + length(proposedtimes))
 			for i = 1:length(bigoed.models)
