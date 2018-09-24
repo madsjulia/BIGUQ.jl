@@ -1,5 +1,5 @@
 "BigOED type"
-type BigOED
+mutable struct BigOED
 	models::Array{Function, 1}#an array of functions that takes a vector of uncertain parameters, a vector of (certain) decision parameters, and two arrays: one of spatial coordinates, and another of times. It returns an array containing the results.
 	#the different models represent different things that could be measured at different times/locations
 	obs::Vector
