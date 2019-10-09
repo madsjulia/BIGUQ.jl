@@ -1,5 +1,5 @@
-using Base.Test
+import Test
 
-@assert(1 == 1)
+@Test.test 1 == 1
 
 :passed

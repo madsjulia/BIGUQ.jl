@@ -32,7 +32,6 @@ LA-CC-15-080; Copyright Number Assigned: C16008
 module BIGUQ
 
 import DataFrames
-import Klara
 import ForwardDiff
 import BlackBoxOptim
 import Distributions
