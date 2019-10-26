@@ -1,6 +1,6 @@
 name = "BIGUQ"
 uuid = "7f9c7709-75fb-5397-acba-f980073965f6"
-version = "0.6.0"
+version = "0.7.0"
 
 [deps]
 AffineInvariantMCMC = "a0f608ac-68d0-5108-ad9a-0cdca73324f3"
@@ -11,7 +11,13 @@ ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 RobustPmap = "27aeedcb-f738-516b-a0b8-3211cf1146e5"
 
 [compat]
-julia = "≥ 1.0.0"
+AffineInvariantMCMC = "^0"
+BlackBoxOptim = "^0"
+DataFrames = "^0"
+Distributions = "^0"
+ForwardDiff = "^0"
+RobustPmap = "^0"
+julia = "^1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
