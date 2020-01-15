@@ -95,24 +95,22 @@ function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizati
 		retval = Distributions.logpdf(residualdistribution, residuals)
 		return retval
 	end
-	#mcmcmodel = Klara.model(loglikelihood, init=bigoed.nominalparams)
+	# mcmcmodel = Klara.model(loglikelihood, init=bigoed.nominalparams)
 	# mcmcparams = Klara.BasicContMuvParameter(:p, logtarget=loglikelihood)
 	# mcmcmodel = Klara.likelihood_model(mcmcparams, false)
-	#=
-	if Base.isbindingresolved(Klara, :RAM)
-		mcmcsampler = Klara.RAM(fill(1e-1, length(bigoed.nominalparams)), 0.3)
-	else
-		warn("Robust Adaptive Metropolis (RAM) method is not available")
-		=#
+	# if Base.isbindingresolved(Klara, :RAM)
+		# mcmcsampler = Klara.RAM(fill(1e-1, length(bigoed.nominalparams)), 0.3)
+	# else
+		# warn("Robust Adaptive Metropolis (RAM) method is not available")
 		# mcmcsampler = Klara.MH(fill(1e-1, length(bigoed.nominalparams)))
-	#end
+	# end
 	# mcmcrange = Klara.BasicMCRange(nsteps=thinning * numobsrealizations + burnin, burnin=burnin, thinning=thinning)
 	mcmcparams0 = Dict(:p=>bigoed.nominalparams)
 	outopts = Dict{Symbol, Any}(:monitor=>[:value, :logtarget, :loglikelihood], :diagnostics=>[:accept])
 	# job = Klara.BasicMCJob(mcmcmodel, mcmcsampler, mcmcrange, mcmcparams0, outopts=outopts, tuner=Klara.VanillaMCTuner())
 	# Klara.run(job)
 	# mcmcchain = Klara.output(job)
-	#use the mcmc samples to generate realizations of the proposed obs
+	# use the mcmc samples to generate realizations of the proposed obs
 	proposedlocations = bigoed.proposedlocations[proposedindex]
 	proposedtimes = bigoed.proposedtimes[proposedindex]
 	proposedmodelindices = bigoed.proposedmodelindices[proposedindex]
