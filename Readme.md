@@ -1,12 +1,6 @@
 BIGUQ
 =======================================
 
-[![BIGUQ](http://pkg.julialang.org/badges/BIGUQ_0.5.svg)](http://pkg.julialang.org/?pkg=BIGUQ&ver=0.5)
-[![BIGUQ](http://pkg.julialang.org/badges/BIGUQ_0.6.svg)](http://pkg.julialang.org/?pkg=BIGUQ&ver=0.6)
-[![BIGUQ](http://pkg.julialang.org/badges/BIGUQ_0.7.svg)](http://pkg.julialang.org/?pkg=BIGUQ&ver=0.7)
-[![Build Status](https://travis-ci.org/madsjulia/BIGUQ.jl.svg?branch=master)](https://travis-ci.org/madsjulia/BIGUQ.jl)
-[![Coverage Status](https://coveralls.io/repos/madsjulia/BIGUQ.jl/badge.svg?branch=master)](https://coveralls.io/r/madsjulia/BIGUQ.jl?branch=master)
-
 BIGUQ pefroms Bayesian Information Gap Decision Theory (BIG-DT) analysis for Uncertainty Quantification, Experimental Design and Decision Analysis.
 BIGUQ is a module of [MADS](http://madsjulia.github.io/Mads.jl).
 
