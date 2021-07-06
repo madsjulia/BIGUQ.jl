@@ -67,7 +67,7 @@ function testmcmc(biguq::BIGUQ.BigDT)
 	@time maxfailureprobs, horizons, badlikelihoodparams=BIGUQ.getrobustnesscurve(biguq, 10, 10; numhorizons=numhorizons)
 	badlikelihoodparamsv = map(p->p[1], badlikelihoodparams)
 	for i = 1:numhorizons
-		println(horizons[i], ": ", maxfailureprobs[i], " -- ", badlikelihoodparamsv[i])
+		println(horizons[i], ": ", maxfailureprobs[i], " => ", badlikelihoodparamsv[i])
 	end
 	return maxfailureprobs, badlikelihoodparamsv
 end
