@@ -38,6 +38,13 @@ import Distributions
 import RobustPmap
 import AffineInvariantMCMC
 
+const biguqdir = splitdir(splitdir(pathof(BIGUQ))[1])[1]
+
+"Test BIGUQ functions"
+function test()
+	include(joinpath(biguqdir, "test", "runtests.jl"))
+end
+
 include("BIGDT.jl")
 include("BIGOED.jl")
 

@@ -22,14 +22,14 @@ end
 
 "Makes BIGDT analyses for each possible decision assuming that no more observations will be made"
 function makebigdts(bigoed::BigOED)
-	function makeloglikelihood(likelihoodparams::Vector, decisionindex::Int64)
+	function makeloglikelihood(likelihoodparams::AbstractVector, decisionindex::Int64)
 		constlikelihoodparams = copy(likelihoodparams)
 		proposedlocations = []
 		proposedtimes = []
 		proposedmodelindices = []
 		residualdistribution = bigoed.makeresidualdistribution(constlikelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, proposedlocations, proposedtimes, proposedmodelindices)
-		function loglikelihood(params::Vector)
-			results = Array{Float64}(length(bigoed.obs))
+		function loglikelihood(params::AbstractVector)
+			results = Vector{Float64}(undef, length(bigoed.obs))
 			for i = 1:length(bigoed.models)
 				goodindices = (bigoed.obsmodelindices .== i)
 				results[goodindices] = bigoed.models[i](params, bigoed.decisionparams[decisionindex], bigoed.obslocations[goodindices], bigoed.obstimes[goodindices])
@@ -40,23 +40,23 @@ function makebigdts(bigoed::BigOED)
 		end
 		return loglikelihood
 	end
-	bigdts = Array{BigDT}(length(bigoed.decisionparams))
+	bigdts = Array{BigDT}(undef, length(bigoed.decisionparams))
 	for i = 1:length(bigoed.decisionparams)
-		bigdts[i] = BIGUQ.BigDT(likelihoodparams->makeloglikelihood(likelihoodparams, i), bigoed.logprior, bigoed.nominalparams, bigoed.residualdistributionparamsmin, bigoed.residualdistributionparamsmax, (params::Array{Float64, 1}, horizon::Float64)->bigoed.performancegoalsatisfied(params, bigoed.decisionparams[i], horizon), (params::Array{Float64, 1})->bigoed.gethorizonoffailure(params, bigoed.decisionparams[i]))
+		bigdts[i] = BIGUQ.BigDT(likelihoodparams->makeloglikelihood(likelihoodparams, i), bigoed.logprior, bigoed.nominalparams, bigoed.residualdistributionparamsmin, bigoed.residualdistributionparamsmax, (params::Array{Float64, 1}, horizon::Float64)->bigoed.performancegoalsatisfied(params, bigoed.decisionparams[i], horizon), (params::Vector{Float64})->bigoed.gethorizonoffailure(params, bigoed.decisionparams[i]))
 	end
 	return bigdts
 end
 
 "Make BIGDT analyses for each possible decision assuming that the proposed observations `proposedobs` are observed"
 function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
-	function makeloglikelihood(likelihoodparams::Vector, decisionindex::Int64)
+	function makeloglikelihood(likelihoodparams::AbstractVector, decisionindex::Int64)
 		constlikelihoodparams = copy(likelihoodparams)
 		proposedlocations = bigoed.proposedlocations[proposedindex]
 		proposedtimes = bigoed.proposedtimes[proposedindex]
 		proposedmodelindices = bigoed.proposedmodelindices[proposedindex]
 		residualdistribution = bigoed.makeresidualdistribution(constlikelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, proposedlocations, proposedtimes, proposedmodelindices)
-		function loglikelihood(params::Vector)
-			results = Array{Float64}(length(bigoed.obs) + length(proposedtimes))
+		function loglikelihood(params::AbstractVector)
+			results = Vector{Float64}(undef, length(bigoed.obs) + length(proposedtimes))
 			for i = 1:length(bigoed.models)
 				goodindicesshort = (bigoed.obsmodelindices .== i)
 				goodindiceslong = [goodindicesshort; fill(false, length(proposedmodelindices))]
@@ -73,9 +73,9 @@ function makebigdts(bigoed::BigOED, proposedindex, proposedobs)
 		end
 		return loglikelihood
 	end
-	bigdts = Array{BigDT}(length(bigoed.decisionparams))
+	bigdts = Array{BigDT}(undef, length(bigoed.decisionparams))
 	for i = 1:length(bigoed.decisionparams)
-		bigdts[i] = BIGUQ.BigDT(likelihoodparams->makeloglikelihood(likelihoodparams, i), bigoed.logprior, bigoed.nominalparams, bigoed.residualdistributionparamsmin, bigoed.residualdistributionparamsmax, (params::Array{Float64, 1}, horizon::Float64)->bigoed.performancegoalsatisfied(params, bigoed.decisionparams[i], horizon), (params::Array{Float64, 1})->bigoed.gethorizonoffailure(params, bigoed.decisionparams[i]))
+		bigdts[i] = BIGUQ.BigDT(likelihoodparams->makeloglikelihood(likelihoodparams, i), bigoed.logprior, bigoed.nominalparams, bigoed.residualdistributionparamsmin, bigoed.residualdistributionparamsmax, (params::Array{Float64, 1}, horizon::Float64)->bigoed.performancegoalsatisfied(params, bigoed.decisionparams[i], horizon), (params::Vector{Float64}->bigoed.gethorizonoffailure(params, bigoed.decisionparams[i])))
 	end
 	return bigdts
 end
@@ -85,8 +85,8 @@ function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizati
 	#setup and do the mcmc sampling
 	likelihoodparams = bigoed.residualdistributionparamsmin(0.)
 	residualdistribution = bigoed.makeresidualdistribution(likelihoodparams, bigoed.obslocations, bigoed.obstimes, bigoed.obsmodelindices, [], [], [])
-	function loglikelihood(params::Vector)
-		results = Array{Float64}(length(bigoed.obs))
+	function loglikelihood(params::AbstractVector)
+		results = Vector{Float64}(undef, length(bigoed.obs))
 		for i = 1:length(bigoed.models)
 			goodindices = (bigoed.obsmodelindices .== i)
 			results[goodindices] = bigoed.models[i](params, bigoed.decisionparams[1], bigoed.obslocations[goodindices], bigoed.obstimes[goodindices])
@@ -114,10 +114,10 @@ function generateproposedobs(bigoed::BigOED, proposedindex::Int, numobsrealizati
 	proposedlocations = bigoed.proposedlocations[proposedindex]
 	proposedtimes = bigoed.proposedtimes[proposedindex]
 	proposedmodelindices = bigoed.proposedmodelindices[proposedindex]
-	proposedobsarray = Array{Array{Float64, 1}}(numobsrealizations)
+	proposedobsarray = Array{Array{Float64, 1}}(undef, numobsrealizations)
 	proposedobsresidualdistribution = bigoed.makeresidualdistribution(likelihoodparams, [], [], [], proposedlocations, proposedtimes, proposedmodelindices)
 	for i = 1:numobsrealizations
-		proposedobsarray[i] = Array{Float64}(length(proposedtimes))
+		proposedobsarray[i] = Vector{Float64}(undef, length(proposedtimes))
 		for j = 1:length(bigoed.models)
 			goodindices = (proposedmodelindices .== j)
 			proposedobsarray[i][goodindices] = bigoed.models[j](vec(mcmcchain.value[:, i]), bigoed.decisionparams[1], proposedlocations[goodindices], proposedtimes[goodindices])
@@ -135,8 +135,8 @@ end
 
 function makedecisionforproposedobs(proposedobsarray, i, bigoed, numhorizons, getfailureprobfnct)
 	local bigdts = makebigdts(bigoed, i, proposedobsarray)
-	local maxfailureprobsarray = Array{Array{Float64, 1}}(length(bigdts))
-	local horizonsarray = Array{Array{Float64, 1}}(length(bigdts))
+	local maxfailureprobsarray = Array{Array{Float64, 1}}(undef, length(bigdts))
+	local horizonsarray = Array{Array{Float64, 1}}(undef, length(bigdts))
 	@show myid()
 	for k = 1:length(bigdts)
 		maxfailureprobsarray[k], horizonsarray[k], throwaway = getrobustnesscurve(bigdts[k], hakunamatata, numlikelihoods; numhorizons=numhorizons, getfailureprobfnct=getfailureprobfnct)
@@ -147,8 +147,8 @@ end
 
 function dobigoed(bigoed::BigOED, hakunamatata::Real, numlikelihoods::Int, numhorizons::Int, numobsrealizations::Int, acceptableprobabilityoffailure::Real, getfailureprobfnct::Function=getfailureprobabilities)
 	bigdts = makebigdts(bigoed)
-	maxfailureprobsarray = Array{Array{Float64, 1}}(length(bigdts))
-	horizonsarray = Array{Array{Float64, 1}}(length(bigdts))
+	maxfailureprobsarray = Array{Array{Float64, 1}}(undef, length(bigdts))
+	horizonsarray = Array{Array{Float64, 1}}(undef, length(bigdts))
 	for i = 1:length(bigdts)
 		maxfailureprobsarray[i], horizonsarray[i], badlikelihoodparams = BIGUQ.getrobustnesscurve(bigdts[i], hakunamatata, numlikelihoods; numhorizons=numhorizons, getfailureprobfnct=getfailureprobfnct)
 		println("Initial decision $i robustness curve:")

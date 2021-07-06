@@ -1,6 +1,8 @@
 include("testoed.jl")
-#import testoed
 import BlackBoxOptim
+import Distributions
+import Distributed
+import Random
 #import ProfileView
 
 nummodelruns = 1000
@@ -10,9 +12,9 @@ numhorizons = 30
 numobsrealizations = 100
 acceptableprobabilityoffailure = 0.1
 #paramsmin, paramsmax, bigoed = testoed.makebigoed1()
-@everywhere srand(0)
+@Distributed.everywhere Random.seed!(0)
 modelparams = BlackBoxOptim.Utils.latin_hypercube_sampling(testoed.paramsmin, testoed.paramsmax, nummodelruns)
-@everywhere srand(0)
+@Distributed.everywhere Random.seed!(0)
 residualdistribution = testoed.makeresidualdistribution(testoed.residualdistributionparamsmin(0.), testoed.bigoed1.obslocations, testoed.bigoed1.obstimes, testoed.bigoed1.obsmodelindices, [], [], [])
 for decisionparam in testoed.decisionparams
 	llhoods = Float64[]
@@ -21,7 +23,7 @@ for decisionparam in testoed.decisionparams
 		push!(llhoods, Distributions.logpdf(residualdistribution, testoed.bigoed1.obs - testoed.bigoed1.models[1](modelparams[:, i], decisionparam, testoed.bigoed1.obslocations, testoed.bigoed1.obstimes)))
 		maxllhood = max(maxllhood, llhoods[end])
 	end
-	println(exp(sort(llhoods)[end-20:end] - sort(llhoods)[end]))
+	println(exp.(sort(llhoods)[end-20:end] .- sort(llhoods)[end]))
 	for i = 1:nummodelruns
 		println(decisionparam, " ", testoed.gethorizonoffailure(modelparams[:, i], decisionparam), " ", exp(-maxllhood + Distributions.logpdf(residualdistribution, testoed.bigoed1.obs - testoed.bigoed1.models[1](modelparams[:, i], decisionparam, testoed.bigoed1.obslocations, testoed.bigoed1.obstimes))))
 	end

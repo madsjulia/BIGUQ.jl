@@ -3,10 +3,11 @@ import BIGUQ
 import Anasol
 import Distributions
 import ReusableFunctions
+import LinearAlgebra
 
 #@everywhere begin
 #function makebigoed1()
-	#srand(0)
+	#Random.seed!(0)
 	function innermodel(p::Vector)
 		local params = p[1:9]
 		local decisionparams = p[10:10]
@@ -24,7 +25,7 @@ import ReusableFunctions
 		local sigma2 = params[8]
 		local mass = params[9]
 		local lambda = decisionparams[1]
-		local result = Array{Float64}(length(xs))
+		local result = Array{Float64}(undef, length(xs))
 		for i = 1:length(xs)
 			#the background concentration is 5
 			result[i] = 5. + mass * exp(-lambda * max(0., ts[i] - 4.5)) * Anasol.long_bb_dd_ii(xs[i], ts[i],
@@ -52,7 +53,7 @@ import ReusableFunctions
 	#f = makemodel(params)
 	#these are the times and places where we have already collected data
 	ts = [0.,1.,2.,0.,1.,2.,0.,1.,2.]
-	xs = Array{Array{Float64, 1}}(9)
+	xs = Array{Array{Float64, 1}}(undef, 9)
 	xs[1] = [0., -.1]
 	xs[2] = [0., -.1]
 	xs[3] = [0., -.1]
@@ -65,29 +66,29 @@ import ReusableFunctions
 	noiselevel = 25.
 	data = model(params, [0.], xs, ts)
 	data += noiselevel * randn(length(data))
-	proposedlocations = Array{Array{Array{Float64, 1}, 1}}(5)
-	proposedlocations[1] = Array{Array{Float64, 1}}(4)
+	proposedlocations = Array{Array{Array{Float64, 1}, 1}}(undef, 5)
+	proposedlocations[1] = Array{Array{Float64, 1}}(undef, 4)
 	proposedlocations[1][1:3] = xs[1:3:7]
 	proposedlocations[1][4] = [.25, 0.]
-	proposedlocations[2] = Array{Array{Float64, 1}}(4)
+	proposedlocations[2] = Array{Array{Float64, 1}}(undef, 4)
 	proposedlocations[2][1:3] = xs[1:3:7]
 	proposedlocations[2][4] = [.25, -.125]
-	proposedlocations[3] = Array{Array{Float64, 1}}(4)
+	proposedlocations[3] = Array{Array{Float64, 1}}(undef, 4)
 	proposedlocations[3][1:3] = xs[1:3:7]
 	proposedlocations[3][4] = [.25, .125]
-	proposedlocations[4] = Array{Array{Float64, 1}}(4)
+	proposedlocations[4] = Array{Array{Float64, 1}}(undef, 4)
 	proposedlocations[4][1:3] = xs[1:3:7]
 	proposedlocations[4][4] = [.125, 0.]
-	proposedlocations[5] = Array{Array{Float64, 1}}(4)
+	proposedlocations[5] = Array{Array{Float64, 1}}(undef, 4)
 	proposedlocations[5][1:3] = xs[1:3:7]
 	proposedlocations[5][4] = [.375, 0.]
-	proposedtimes = Array{Array{Float64, 1}}(5)
+	proposedtimes = Array{Array{Float64, 1}}(undef, 5)
 	proposedtimes[1] = [3., 3., 3., 3.]
 	proposedtimes[2] = [3., 3., 3., 3.]
 	proposedtimes[3] = [3., 3., 3., 3.]
 	proposedtimes[4] = [3., 3., 3., 3.]
 	proposedtimes[5] = [3., 3., 3., 3.]
-	proposedmodelindices = Array{Array{Int64, 1}}(5)
+	proposedmodelindices = Array{Array{Int64, 1}}(undef, 5)
 	proposedmodelindices[1] = ones(Int, length(proposedlocations[1]))
 	proposedmodelindices[2] = ones(Int, length(proposedlocations[2]))
 	proposedmodelindices[3] = ones(Int, length(proposedlocations[3]))
@@ -107,11 +108,11 @@ import ReusableFunctions
 		local k = geostatparams[3]
 		alllocations = [datalocations; proposedlocations]
 		alltimes = [datatimes; proposedtimes]
-		local covmat = Array{Float64}((length(alllocations), length(alllocations)))
+		local covmat = Array{Float64}(undef, (length(alllocations), length(alllocations)))
 		for i = 1:length(alllocations)
 			covmat[i, i] = rationalquadraticcovariance(0., sigma, alpha, k)
 			for j = i+1:length(alllocations)
-				h = sqrt(norm(alllocations[i] - alllocations[j]) ^ 2 + (alltimes[i] - alltimes[j]) ^ 2)
+				h = sqrt(LinearAlgebra.norm(alllocations[i] - alllocations[j]) ^ 2 + (alltimes[i] - alltimes[j]) ^ 2)
 				covmat[i, j] = rationalquadraticcovariance(h, sigma, alpha, k)
 				covmat[j, i] = covmat[i, j]
 			end
@@ -130,11 +131,11 @@ import ReusableFunctions
 		local k = .1 * (1 + horizonofuncertainty)#k is like a length scale
 		return [sigma, alpha, k]
 	end
-	nominalparams = params + sqrt(params) .* randn(length(params)) / 100
+	nominalparams = params + sqrt.(params) .* randn(length(params)) / 100
 	ncompliancepoints = 10
 	ncompliancetimes = 10
-	compliancepoints = Array{Array{Float64, 1}}(ncompliancepoints * ncompliancetimes)
-	compliancetimes = Array{Float64}(ncompliancepoints * ncompliancetimes)
+	compliancepoints = Array{Array{Float64, 1}}(undef, ncompliancepoints * ncompliancetimes)
+	compliancetimes = Array{Float64}(undef, ncompliancepoints * ncompliancetimes)
 	for i = 1:ncompliancetimes
 		for j = 1:ncompliancepoints
 			compliancepoints[(i - 1) * ncompliancepoints + j] = [.5, (j - .5 * ncompliancepoints) / ncompliancepoints]
@@ -150,7 +151,7 @@ import ReusableFunctions
 	function gethorizonoffailure(params::Vector, decisionparams::Vector)
 		results = model(params, decisionparams, compliancepoints, compliancetimes)
 		minhorizonoffailure::Float64 = Inf
-		horizonsoffailure = max(0., compliancethreshold ./ results - 1)
+		horizonsoffailure = max.(0., compliancethreshold ./ results .- 1)
 		return minimum(horizonsoffailure)
 	end
 	#=
@@ -182,7 +183,7 @@ import ReusableFunctions
 			return 1.
 		end
 	end
-	decisionparams = Array{Array{Float64, 1}}(2)
+	decisionparams = Array{Array{Float64, 1}}(undef, 2)
 	decisionparams[1] = zeros(1)
 	decisionparams[2] = 0.2 * ones(1)
 	robustnesspenalty = [0., .15]
@@ -194,7 +195,8 @@ import ReusableFunctions
 	=#
 	#return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, map(int, ones(length(data))), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty)
 	#return paramsmin, paramsmax, BIGUQ.BigOED([model], data, xs, ts, ones(Int, length(data)), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
-bigoed1 = BIGUQ.BigOED([model], data, xs, ts, ones(Int, length(data)), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
-#end
-
+	bigoed1 = BIGUQ.BigOED([model], data, xs, ts, ones(Int, length(data)), proposedlocations, proposedtimes, proposedmodelindices, makeresidualdistribution, residualdistributionparamsmin, residualdistributionparamsmax, nominalparams, performancegoalsatisfied, logprior, decisionparams, robustnesspenalty, gethorizonoffailure)
+	#end
 end
+
+:passed
