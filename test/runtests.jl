@@ -87,16 +87,20 @@ end
 @Test.testset "BIGUQ" begin
 	biguq1 = getbiguq1()
 	mfp1mc, blp1mc = testmcmc(biguq1)
-	mfp1mc_good = [0.0, 0.2556, 0.2822, 0.2994, 0.3482, 0.3484]
-	blp1mc_good = [2.0, 5.2844070360185285, 7.444968205794697, 13.556910220654995, 15.745641078412042, 15.745641078412042]
+	# @show mfp1mc
+	# @show blp1mc
+	mfp1mc_good = [0.0, 0.1164, 0.2757, 0.3148, 0.3154, 0.3159]
+	blp1mc_good = [2.0, 2.946231092024565, 6.772567162017035, 13.700022617908882, 13.700022617908882, 13.700022617908882]
 	for i=1:6
 		@Test.test isapprox(mfp1mc_good[i], mfp1mc[i], atol=1e-6)
 		@Test.test isapprox(blp1mc_good[i], blp1mc[i], atol=1e-6)
 	end
 
 	mfp1lh, blp1lh = testlhmc(biguq1, [0.], [10.])
-	mfp1lh_good = [0.0, 0.3619482496194825, 0.7874351936566026, 0.7913, 0.7917, 0.7921]
-	blp1lh_good = [2.0, 3.2846472088725, 9.837369124373081, 11.616288946429627, 11.616288946429627, 11.616288946429627]
+	# @show mfp1lh
+	# @show blp1lh
+	mfp1lh_good = [0.0, 0.5295173961840629, 0.7901494633363426, 0.7912, 0.7916, 0.7921]
+	blp1lh_good = [2.0, 4.455447953456097, 9.968367622709813, 12.932745314323602, 16.599380007688225, 16.599380007688225]
 	for i=1:6
 		@Test.test isapprox(mfp1lh_good[i], mfp1lh[i], atol=1e-6)
 		@Test.test isapprox(blp1lh_good[i], blp1lh[i], atol=1e-6)
@@ -104,16 +108,20 @@ end
 
 	biguq2 = getbiguq2()
 	mfp2mc, blp2mc = testmcmc(biguq2)
-	mfp2mc_good = [0.0, 0.0, 0.0, 0.0, 0.0434, 0.0788]
-	blp2mc_good = [4.0, 4.0, 4.0, 4.0, -3.761337647310173, -4.002622914064428]
+	# @show mfp2mc
+	# @show blp2mc
+	mfp2mc_good = [0.0, 0.0, 0.0, 0.0001, 0.1515, 0.2649]
+	blp2mc_good = [4.0, 4.0, 4.0, -1.4189513935792624, -3.6115024767738935, -4.072071947615175]
 	for i=1:6
 		@Test.test isapprox(mfp2mc_good[i], mfp2mc[i], atol=1e-6)
 		@Test.test isapprox(blp2mc_good[i], blp2mc[i], atol=1e-6)
 	end
 
 	mfp2lh, blp2lh = testlhmc(biguq2, [0.], [10.])
-	mfp2lh_good = [3.207380832206222e-5, 3.216220137003713e-5, 3.56774862493778e-5, 0.00013339205587499655, 0.0019817679913793655, 0.998522362632795]
-	blp2lh_good = [4.0, 3.7846025434923813, 1.6603780645678023, -0.9524196631197999, -2.291791981482562, -5.8479072462287505]
+	# @show mfp2lh
+	# @show blp2lh
+	mfp2lh_good = [3.2203563160248066e-5, 3.227899734877979e-5, 4.5381718321358685e-5, 7.280440999805115e-5, 0.0038342906616330203, 0.9919609042270471]
+	blp2lh_good = [4.0, 3.8629301185331304, 0.8641614468987395, -0.006790283263419461, -2.0757241384864766, -4.511496382242316]
 	for i=1:6
 		@Test.test isapprox(mfp2lh_good[i], mfp2lh[i], atol=1e-6)
 		@Test.test isapprox(blp2lh_good[i], blp2lh[i], atol=1e-6)
