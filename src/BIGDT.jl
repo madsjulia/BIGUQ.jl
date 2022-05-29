@@ -125,9 +125,9 @@ function makegetfailureprobabilities_mc(modelparams::AbstractMatrix, origloglike
 			end
 		end
 		if sumweights == 0.
-			error("All samples have zero weight. likelihoodparams: $likelihoodparams")
+			@error("All samples have zero weight. likelihoodparams: $likelihoodparams")
 		elseif sumweights == 1.
-			warn("All or nearly all the weight was in one sample. likelihoodparams: $likelihoodparams")
+			@warn("All or nearly all the weight was in one sample. likelihoodparams: $likelihoodparams")
 		end
 		return failures / sumweights
 	end
@@ -171,8 +171,8 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 	numlikelihoods += 1
 	likelihood_colvecs = [likelihoodparams[:,i] for i=1:size(likelihoodparams, 2)]
 	failureprobs = RobustPmap.rpmap(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs; t=Array{Float64, 1})
-	#failureprobs = map(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
-	#warn("failureprobs is not pmapped")
+	# failureprobs = map(p->getfailureprobfnct(bigdt, horizons, p), likelihood_colvecs)
+	# @warn("failureprobs is not pmapped")
 	maxfailureprobs = zeros(numhorizons)
 
 	badlikelihoodparams = Array{Array{Float64, 1}}(undef, numhorizons)
