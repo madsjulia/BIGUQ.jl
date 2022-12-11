@@ -125,7 +125,7 @@ function makegetfailureprobabilities_mc(modelparams::AbstractMatrix, origloglike
 			end
 		end
 		if sumweights == 0.
-			@error("All samples have zero weight. likelihoodparams: $likelihoodparams")
+			@error("All samples have zero weights. likelihoodparams: $likelihoodparams")
 		elseif sumweights == 1.
 			@warn("All or nearly all the weight was in one sample. likelihoodparams: $likelihoodparams")
 		end
@@ -192,7 +192,7 @@ function getrobustnesscurve(bigdt::BigDT, hakunamatata::Number, numlikelihoods::
 end
 
 function printresults(maxfailureprobs, horizons, badlikelihoodparams)
-	for i = 1:length(horizons)
+	for i = eachindex(horizons)
 		println(horizons[i], ",", maxfailureprobs[i], ",", badlikelihoodparams[i])
 	end
 end
@@ -218,7 +218,7 @@ end
 function makedecision(bigdts::Array{BigDT, 1}, acceptableprobabilityoffailure, hakunamatata, numlikelihoods, numhorizons; robustnesspenalty=zeros(length(bigdts)))
 	maxfailureprobsarray = Array{Array{Float64, 1}}(length(bigdts))
 	horizonsarray = Array{Array{Float64, 1}}(length(bigdts))
-	for i = 1:length(bigdts)
+	for i = eachindex(bigdts)
 		maxfailureprobsarray[i], horizonsarray[i], throwaway = getrobustnesscurve(bigdts[i], hakunamatata, numlikelihoods; numhorizons=numhorizons)
 	end
 	return makedecision(maxfailureprobsarray, horizonsarray, acceptableprobabilityoffailure; robustnesspenalty=robustnesspenalty)
