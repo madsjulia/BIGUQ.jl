@@ -1,7 +1,6 @@
-BIGUQ
-=======================================
+# BIGUQ
 
-BIGUQ pefroms Bayesian Information Gap Decision Theory (BIG-DT) analysis for Uncertainty Quantification, Experimental Design and Decision Analysis.
+BIGUQ performs Bayesian Information Gap Decision Theory (BIG-DT) analysis for Uncertainty Quantification, Experimental Design, and Decision Analysis.
 BIGUQ is a module of [MADS](http://madsjulia.github.io/Mads.jl).
 
 Example
@@ -31,11 +30,12 @@ MADS can execute a wide range of data- and model-based analyses:
 * Model Selection and Model Averaging
 * Model Reduction and Surrogate Modeling
 * Machine Learning and Blind Source Separation
+* Risk Assessment
 * Decision Analysis and Support
 
-MADS has been tested to perform HPC simulations on a wide-range multi-processor clusters and parallel environments (Moab, Slurm, etc.).
+MADS has been tested to perform HPC simulations of a wide range of multi-processor clusters and parallel environments (Moab, Slurm, etc.).
 MADS utilizes adaptive rules and techniques which allows the analyses to be performed with a minimum user input.
-The code provides a series of alternative algorithms to execute each type of data- and model-based analyses.
+The code provides a series of alternative algorithms to execute each type of data- and model-based analysis.
 
 Documentation
 =============
@@ -52,7 +52,7 @@ Pkg.add("Mads")
 Installation behind a firewall
 ------------------------------
 
-Julia uses git for the package management.
+Julia uses git for package management.
 To install Julia packages behind a firewall, add the following lines in the `.gitconfig` file in your home directory:
 
 ```git
