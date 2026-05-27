@@ -1,7 +1,6 @@
-BIGUQ
-=======================================
+# BIGUQ
 
-BIGUQ pefroms Bayesian Information Gap Decision Theory (BIG-DT) analysis for Uncertainty Quantification, Experimental Design and Decision Analysis.
+BIGUQ performs Bayesian Information Gap Decision Theory (BIG-DT) analysis for Uncertainty Quantification, Experimental Design, and Decision Analysis.
 BIGUQ is a module of [MADS](http://madsjulia.github.io/Mads.jl).
 
 Example
@@ -31,11 +30,12 @@ MADS can execute a wide range of data- and model-based analyses:
 * Model Selection and Model Averaging
 * Model Reduction and Surrogate Modeling
 * Machine Learning and Blind Source Separation
+* Risk Assessment
 * Decision Analysis and Support
 
-MADS has been tested to perform HPC simulations on a wide-range multi-processor clusters and parallel environments (Moab, Slurm, etc.).
+MADS has been tested to perform HPC simulations of a wide range of multi-processor clusters and parallel environments (Moab, Slurm, etc.).
 MADS utilizes adaptive rules and techniques which allows the analyses to be performed with a minimum user input.
-The code provides a series of alternative algorithms to execute each type of data- and model-based analyses.
+The code provides a series of alternative algorithms to execute each type of data- and model-based analysis.
 
 Documentation
 =============
@@ -52,7 +52,7 @@ Pkg.add("Mads")
 Installation behind a firewall
 ------------------------------
 
-Julia uses git for the package management.
+Julia uses git for package management.
 To install Julia packages behind a firewall, add the following lines in the `.gitconfig` file in your home directory:
 
 ```git
@@ -121,12 +121,22 @@ to perform Bayesian Information Gap Decision Theory (BIG-DT) analysis.
 Developers
 ==========
 
-* [Velimir (monty) Vesselinov](http://www.lanl.gov/orgs/ees/staff/monty) [(publications)](http://scholar.google.com/citations?user=sIFHVvwAAAAJ)
+* [Velimir (monty) Vesselinov](https://montyv.github.io) [(publications)](http://scholar.google.com/citations?user=sIFHVvwAAAAJ)
 * [Daniel O'Malley](http://www.lanl.gov/expertise/profiles/view/daniel-o'malley) [(publications)](http://scholar.google.com/citations?user=rPzCVjEAAAAJ)
-* [see also](https://github.com/madsjulia/BIGUQ.jl/graphs/contributors)
 
-Publications, Presentations, Projects
-=====================================
+Projects:
+---------
 
-* [mads.lanl.gov/](http://mads.lanl.gov/)
-* [ees.lanl.gov/monty](http://ees.lanl.gov/monty)
+* [MADS](https://github.com/madsjulia)
+* [SmartTensors](https://github.com/SmartTensors)
+* [SmartML](https://github.com/SmartTensors/SmartML.jl)
+
+Publications, Presentations
+--------------------------
+
+* [mads.gitlab.io](http://mads.gitlab.io)
+* [madsjulia.github.io](https://madsjulia.github.io)
+* [SmartTensors](https://SmartTensors.github.io)
+* [SmartTensors.com](https://SmartTensors.com)
+* [monty.gitlab.io](http://monty.gitlab.io)
+* [montyv.github.io](https://montyv.github.io)
