@@ -49,44 +49,6 @@ Installation
 Pkg.add("Mads")
 ```
 
-Installation behind a firewall
-------------------------------
-
-Julia uses git for package management.
-To install Julia packages behind a firewall, add the following lines in the `.gitconfig` file in your home directory:
-
-```git
-[url "https://"]
-        insteadOf = git://
-```
-
-or execute:
-
-```bash
-git config --global url."https://".insteadOf git://
-```
-
-Set proxies:
-
-```bash
-export ftp_proxy=http://proxyout.<your_site>:8080
-export rsync_proxy=http://proxyout.<your_site>:8080
-export http_proxy=http://proxyout.<your_site>:8080
-export https_proxy=http://proxyout.<your_site>:8080
-export no_proxy=.<your_site>
-```
-
-For example, if you are doing this at LANL, you will need to execute the
-following lines in your bash command-line environment:
-
-```bash
-export ftp_proxy=http://proxyout.lanl.gov:8080
-export rsync_proxy=http://proxyout.lanl.gov:8080
-export http_proxy=http://proxyout.lanl.gov:8080
-export https_proxy=http://proxyout.lanl.gov:8080
-export no_proxy=.lanl.gov
-```
-
 MADS examples
 =============
 
